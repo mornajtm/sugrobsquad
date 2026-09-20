@@ -7,13 +7,32 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <header class="topbar">
-    <a href="/" class="logo">❄️ SUGROB SQUAD</a>
-    <nav>
-      <button id="logoutBtn" class="nav-btn">Выйти</button>
+
+  <!-- ============ БОКОВОЕ МЕНЮ ============ -->
+  <div class="side-menu-overlay" id="sideMenuOverlay"></div>
+  <aside class="side-menu" id="sideMenu">
+    <div class="side-menu-head">
+      <span>Меню</span>
+      <button id="closeSideMenu">✕</button>
+    </div>
+    <nav class="side-menu-nav">
+      <a href="/">🏠 Главная</a>
+      <a href="/profile">👤 Профиль</a>
+      <a href="/trade">🛒 Торговля</a>
+      <a href="/realty">🏠 Недвижимость</a>
     </nav>
+  </aside>
+
+  <!-- ============ ТОПБАР ============ -->
+  <header class="topbar">
+    <button class="burger">☰</button>
+    <a href="/" class="logo">❄️ SUGROB SQUAD</a>
+    <div class="topbar-right">
+      <button id="logoutBtn" class="nav-btn">Выйти</button>
+    </div>
   </header>
 
+  <!-- ============ КОНТЕНТ ============ -->
   <main class="container narrow">
     <div class="card" id="profileCard">
       <p class="muted">Загрузка...</p>
