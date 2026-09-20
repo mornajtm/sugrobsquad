@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SUGROB SQUAD — игровое сообщество</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a href="/" class="logo">❄️ SUGROB SQUAD</a>
+    <nav>
+      {% if user %}
+        <a href="/profile" class="nav-btn">Профиль</a>
+      {% else %}
+        <a href="/login" class="nav-btn">Войти</a>
+        <a href="/register" class="nav-btn primary">Регистрация</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero card">
+      <h1>❄️ SUGROB SQUAD</h1>
+      <p class="subtitle">Твоё идеальное игровое сообщество 🎮</p>
+      {% if not user %}
+      <div class="btn-row">
+        <a href="/register" class="btn primary">Начать</a>
+        <a href="/login" class="btn">Войти</a>
+      </div>
+      {% else %}
+      <div class="btn-row">
+        <a href="/profile" class="btn primary">Мой профиль</a>
+      </div>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <h2>👑 Хочешь быть частью настоящей команды?</h2>
+      <p>Мы объединяем игроков, для которых игры — это не только про механики и цифры,
+      а про эмоции и совместные победы. Наш сквад — как государство со структурой
+      и законами: каждый важен, каждый — часть целого.</p>
+    </section>
+
+    <section class="card">
+      <h2>🎲 Мы рубимся в самые разные игры</h2>
+      <p>Здесь можно сыграть во многие кооперативные игры вместе — строительство,
+      тактика, коллективные решения. Тут всегда найдётся место и для серьёзного
+      обсуждения, и для шуток, и для поддержки.</p>
+    </section>
+
+    <section class="card">
+      <h2>🏛️ Своя уникальная система взаимодействия</h2>
+      <p>Иерархия от новичков до ветеранов, награды, почётные титулы. Мы создаём
+      целую вселенную со своими правилами, ценностями и легендами.</p>
+    </section>
+
+    <section class="card cta">
+      <h2>❤️‍🔥 Присоединяйся!</h2>
+      <p>Смело заходи в наш Discord — там намного больше информации.</p>
+      <a href="https://discord.gg/5aYZZbJu3" target="_blank" class="btn primary big">🚀 Discord сквада</a>
+    </section>
+  </main>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>

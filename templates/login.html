@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Вход — SUGROB SQUAD</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="container narrow">
+    <form class="card form" id="loginForm">
+      <h1>Вход</h1>
+      <p class="err" id="error"></p>
+      <input type="text" name="username" placeholder="Ник или Email" required>
+      <input type="password" name="password" placeholder="Пароль" required>
+      <button type="submit" class="btn primary">Войти</button>
+      <p class="muted">Нет аккаунта? <a href="/register">Регистрация</a></p>
+    </form>
+  </main>
+  <script src="/static/script.js"></script>
+</body>
+</html>
