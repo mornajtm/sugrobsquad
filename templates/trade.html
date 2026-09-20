@@ -95,6 +95,7 @@
     </table>
   </main>
 
+  <!-- МОДАЛКА: создать товар -->
   <div class="modal-overlay" id="createProductModal">
     <div class="modal modal-lg">
       <button class="modal-close" data-close="createProductModal">✕</button>
@@ -105,13 +106,21 @@
         <button class="switch-tab" data-type="rent">Аренда</button>
       </div>
 
-      <form id="createProductForm" class="modal-form">
-        <label id="shopLabel">Магазин <span class="req">*</span></label>
-        <select name="shop" id="shopSelect">
-          <option value="">Магазин</option>
-          <option value="Магазин Пушок">Магазин Пушок</option>
-          <option value="IdShop (Портал)">IdShop (Портал)</option>
-          <option value="ShopПушистик">ShopПушистик</option>
+      <!-- Блок: нет магазинов -->
+      <div id="noShopsBlock" style="display:none; text-align:center; padding:24px 8px;">
+        <div style="margin-bottom:16px; color:#666; font-size:15px;">
+          У тебя пока нет магазинов.<br>Создай его в разделе «Недвижимость».
+        </div>
+        <a href="/realty" class="btn primary">
+          <i data-lucide="store"></i> Создать магазин
+        </a>
+      </div>
+
+      <!-- Блок: форма -->
+      <form id="createProductForm" class="modal-form" style="display:none">
+        <label>Магазин <span class="req">*</span></label>
+        <select name="shop" id="shopSelect" required>
+          <option value="">Выбери магазин</option>
         </select>
 
         <label>Предмет <span class="req">*</span></label>
@@ -148,6 +157,7 @@
     </div>
   </div>
 
+  <!-- МОДАЛКА: поиск -->
   <div class="modal-overlay" id="searchModal">
     <div class="modal">
       <button class="modal-close" data-close="searchModal">✕</button>
