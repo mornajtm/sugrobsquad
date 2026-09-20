@@ -98,6 +98,7 @@ def current_user():
     return user
 
 
+# ============ СТРАНИЦЫ ============
 @app.route("/")
 def home():
     return render_template("index.html", user=current_user())
@@ -112,14 +113,12 @@ def profile_page():
 
 @app.route("/trade")
 def trade_page():
-    u = current_user()
-    return render_template("trade.html", user=u)
+    return render_template("trade.html", user=current_user())
 
 
 @app.route("/realty")
 def realty_page():
-    u = current_user()
-    return render_template("realty.html", user=u)
+    return render_template("realty.html", user=current_user())
 
 
 # ============ АВТОРИЗАЦИЯ ============
@@ -220,10 +219,8 @@ def api_upload_avatar():
     u = current_user()
     if not u:
         return jsonify({"error": "Не авторизован"}), 401
-
     if "file" not in request.files:
         return jsonify({"error": "Файл не передан"}), 400
-
     f = request.files["file"]
     if not f or not f.filename:
         return jsonify({"error": "Пустое имя файла"}), 400
@@ -233,7 +230,7 @@ def api_upload_avatar():
     ext = f.filename.rsplit(".", 1)[1].lower()
     filename = f"avatar_{u['id']}_{secrets.token_hex(6)}.{ext}"
     save_path = UPLOAD_DIR / filename
-    f.save(save_path)
+    f.save(str(save_path))
 
     url = f"/static/uploads/{filename}"
 
@@ -241,7 +238,6 @@ def api_upload_avatar():
     con.execute("UPDATE users SET avatar = ? WHERE id = ?", (url, u["id"]))
     con.commit()
     con.close()
-
     return jsonify({"success": True, "url": url})
 
 
