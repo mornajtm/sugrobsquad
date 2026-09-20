@@ -1,6 +1,14 @@
 document.addEventListener("DOMContentLoaded", () => {
 
-  // ============ МОДАЛКА ============
+  // ============ УТИЛИТА ============
+  function escapeHtml(str) {
+    if (!str) return "";
+    return String(str)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  // ============ МОДАЛКА АВТОРИЗАЦИИ ============
   const authModal = document.getElementById("authModal");
   const openAuthBtn = document.getElementById("openAuthBtn");
   const joinSquadBtn = document.getElementById("joinSquadBtn");
@@ -203,7 +211,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   if (sideMenuOverlay) {
     sideMenuOverlay.addEventListener("click", () => {
-      sideMenu.classList.remove("active");
+      if (sideMenu) sideMenu.classList.remove("active");
       sideMenuOverlay.classList.remove("active");
     });
   }
@@ -219,15 +227,6 @@ document.addEventListener("DOMContentLoaded", () => {
     observer.observe(joinSection);
   }
 
-  // ============ УТИЛИТА ============
-  function escapeHtml(str) {
-    if (!str) return "";
-    return String(str)
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  }
-
-});
   // ============ ТОРГОВЛЯ ============
   const productsBody = document.getElementById("productsBody");
   if (productsBody) {
@@ -249,9 +248,16 @@ document.addEventListener("DOMContentLoaded", () => {
       if (currentFilter === "active") list = list.filter(p => p.status === "active");
       if (currentFilter === "mine") list = list.filter(p => p.is_mine);
 
-      if (searchQuery.id) list = list.filter(p => String(p.id).includes(searchQuery.id));
-      if (searchQuery.player) list = list.filter(p => (p.nickname || p.username || "").toLowerCase().includes(searchQuery.player.toLowerCase()));
-      if (searchQuery.item) list = list.filter(p => (p.item || "").toLowerCase().includes(searchQuery.item.toLowerCase()));
+      if (searchQuery.id)
+        list = list.filter(p => String(p.id).includes(searchQuery.id));
+      if (searchQuery.player)
+        list = list.filter(p =>
+          (p.nickname || p.username || "").toLowerCase().includes(searchQuery.player.toLowerCase())
+        );
+      if (searchQuery.item)
+        list = list.filter(p =>
+          (p.item || "").toLowerCase().includes(searchQuery.item.toLowerCase())
+        );
 
       if (currentSort === "asc") list.sort((a, b) => a.price - b.price);
       if (currentSort === "desc") list.sort((a, b) => b.price - a.price);
@@ -294,12 +300,11 @@ document.addEventListener("DOMContentLoaded", () => {
       t.addEventListener("click", () => {
         document.querySelectorAll(".tabline").forEach(x => x.classList.remove("active"));
         t.classList.add("active");
-        currentFilter = t.dataset.filter;
+        currentFilter = t.dataset.filter || "active";
         renderProducts();
       });
     });
 
-    // Модалка создания товара
     const createProductModal = document.getElementById("createProductModal");
     const createProductForm = document.getElementById("createProductForm");
     const openCreateProduct = document.getElementById("openCreateProduct");
@@ -331,7 +336,8 @@ document.addEventListener("DOMContentLoaded", () => {
         e.preventDefault();
         const err = document.getElementById("createProductError");
         err.textContent = "";
-        const type = document.querySelector(".switch-tab.active")?.dataset.type || "shop";
+        const activeSwitch = document.querySelector(".switch-tab.active");
+        const type = activeSwitch ? activeSwitch.dataset.type : "shop";
         const data = {
           type,
           shop: createProductForm.shop.value,
@@ -398,4 +404,69 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderPlots() {
       if (!allPlots.length) {
-        plotsBody.innerHTML = `<tr><td colspan="7" class="empty-row">Список участков пустой</td></tr>
+        plotsBody.innerHTML = `<tr><td colspan="7" class="empty-row">Список участков пустой</td></tr>`;
+        return;
+      }
+      plotsBody.innerHTML = allPlots.map(p => `
+        <tr>
+          <td>${escapeHtml(p.nickname || p.username)}</td>
+          <td>${escapeHtml(p.title)}</td>
+          <td>${escapeHtml(p.map || "—")}</td>
+          <td>X: ${p.x}, Z: ${p.z}</td>
+          <td>${p.price} AP</td>
+          <td>${p.status === "rented" ? "Арендован" : "Свободен"}</td>
+          <td>
+            ${p.status === "free"
+              ? `<button class="btn primary" data-rent="${p.id}" style="padding:6px 12px;font-size:13px">Арендовать</button>`
+              : ""}
+          </td>
+        </tr>
+      `).join("");
+
+      plotsBody.querySelectorAll("[data-rent]").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const res = await fetch(`/api/plots/${btn.dataset.rent}/rent`, { method: "POST" });
+          const json = await res.json();
+          if (!res.ok) return alert(json.error || "Ошибка");
+          loadPlots();
+        });
+      });
+    }
+
+    const createPlotModal = document.getElementById("createPlotModal");
+    const createPlotForm = document.getElementById("createPlotForm");
+    const openCreatePlot = document.getElementById("openCreatePlot");
+
+    if (openCreatePlot) {
+      openCreatePlot.addEventListener("click", () => createPlotModal.classList.add("active"));
+    }
+
+    if (createPlotForm) {
+      createPlotForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const err = document.getElementById("createPlotError");
+        err.textContent = "";
+        const data = {
+          map: createPlotForm.map.value,
+          title: createPlotForm.title.value,
+          x: createPlotForm.x.value,
+          z: createPlotForm.z.value,
+          price: createPlotForm.price.value,
+        };
+        const res = await fetch("/api/plots", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const json = await res.json();
+        if (!res.ok) return (err.textContent = json.error || "Ошибка");
+        createPlotModal.classList.remove("active");
+        createPlotForm.reset();
+        loadPlots();
+      });
+    }
+
+    loadPlots();
+  }
+
+});
