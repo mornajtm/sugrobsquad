@@ -133,3 +133,46 @@ function escapeHtml(str) {
     .replace(/&/g, "&amp;").replace(/</g, "&lt;")
     .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
+
+// ============ МОДАЛКА ============
+const authModal = document.getElementById("authModal");
+const openAuthBtn = document.getElementById("openAuthBtn");
+const joinSquadBtn = document.getElementById("joinSquadBtn");
+const closeAuthBtn = document.getElementById("closeAuthBtn");
+
+function openModal() { if (authModal) authModal.classList.add("active"); }
+function closeModal() { if (authModal) authModal.classList.remove("active"); }
+
+if (openAuthBtn) openAuthBtn.addEventListener("click", openModal);
+if (closeAuthBtn) closeAuthBtn.addEventListener("click", closeModal);
+
+// Плавный скролл к блоку "Присоединяйся"
+if (joinSquadBtn) {
+  joinSquadBtn.addEventListener("click", () => {
+    const target = document.getElementById("joinSection");
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  });
+}
+
+if (authModal) {
+  authModal.addEventListener("click", (e) => {
+    if (e.target === authModal) closeModal();
+  });
+}
+
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    const target = tab.dataset.tab;
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById(target + "Form").classList.add("active");
+  });
+});
+
+function togglePass(btn) {
+  const input = btn.parentElement.querySelector("input");
+  input.type = input.type === "password" ? "text" : "password";
+}
