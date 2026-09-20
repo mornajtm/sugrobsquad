@@ -463,6 +463,31 @@ def api_my_shops():
     return jsonify({"shops": [dict(r) for r in rows]})
 
 
+# ============ ДИАГНОСТИКА ============
+@app.route("/api/health")
+def api_health():
+    info = {
+        "db_url_present": bool(DATABASE_URL),
+        "db_url_scheme": DATABASE_URL.split("://")[0] if DATABASE_URL else None,
+        "db_url_length": len(DATABASE_URL) if DATABASE_URL else 0,
+        "db_url_has_connection_limit": "connection_limit" in (DATABASE_URL or ""),
+        "db_url_has_sslmode": "sslmode" in (DATABASE_URL or ""),
+    }
+    try:
+        con = db()
+        cur = con.cursor()
+        cur.execute("SELECT COUNT(*) AS c FROM users")
+        row = cur.fetchone()
+        info["users_count"] = row["c"] if isinstance(row, dict) else row[0]
+        cur.close()
+        con.close()
+        info["db_status"] = "OK"
+    except Exception as e:
+        info["db_status"] = "ERROR"
+        info["db_error"] = str(e)
+    return jsonify(info)
+
+
 init_db()
 
 if __name__ == "__main__":
