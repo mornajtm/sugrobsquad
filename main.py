@@ -9,6 +9,16 @@ from werkzeug.utils import secure_filename
 BASE_DIR = pathlib.Path(__file__).parent
 DB = BASE_DIR / "sugrob.db"
 
+UPLOAD_DIR = BASE_DIR / "static" / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+ALLOWED_EXT = {"png", "jpg", "jpeg", "gif", "webp"}
+
+
+def allowed_file(name):
+    return "." in name and name.rsplit(".", 1)[1].lower() in ALLOWED_EXT
+
+
 app = Flask(__name__)
 
 
@@ -172,6 +182,7 @@ def api_logout():
     return res
 
 
+# ============ ПРОФИЛЬ ============
 @app.route("/api/profile", methods=["GET"])
 def api_get_profile():
     u = current_user()
@@ -201,6 +212,37 @@ def api_update_profile():
     con.commit()
     con.close()
     return jsonify({"success": True})
+
+
+# ============ ЗАГРУЗКА АВАТАРА ============
+@app.route("/api/upload-avatar", methods=["POST"])
+def api_upload_avatar():
+    u = current_user()
+    if not u:
+        return jsonify({"error": "Не авторизован"}), 401
+
+    if "file" not in request.files:
+        return jsonify({"error": "Файл не передан"}), 400
+
+    f = request.files["file"]
+    if not f or not f.filename:
+        return jsonify({"error": "Пустое имя файла"}), 400
+    if not allowed_file(f.filename):
+        return jsonify({"error": "Разрешены png, jpg, jpeg, gif, webp"}), 400
+
+    ext = f.filename.rsplit(".", 1)[1].lower()
+    filename = f"avatar_{u['id']}_{secrets.token_hex(6)}.{ext}"
+    save_path = UPLOAD_DIR / filename
+    f.save(save_path)
+
+    url = f"/static/uploads/{filename}"
+
+    con = db()
+    con.execute("UPDATE users SET avatar = ? WHERE id = ?", (url, u["id"]))
+    con.commit()
+    con.close()
+
+    return jsonify({"success": True, "url": url})
 
 
 # ============ ТОВАРЫ ============
