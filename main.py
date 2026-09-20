@@ -24,7 +24,9 @@ app = Flask(__name__)
 
 def init_db():
     con = sqlite3.connect(DB)
-    con.execute("""
+    cur = con.cursor()
+
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
@@ -36,7 +38,8 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    con.execute("""
+
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             seller_id INTEGER NOT NULL,
@@ -51,7 +54,8 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    con.execute("""
+
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS plots (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             owner_id INTEGER NOT NULL,
@@ -65,6 +69,21 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    # Миграция: добавить колонку kind, если её нет
+    cur.execute("PRAGMA table_info(plots)")
+    cols = [row[1] for row in cur.fetchall()]
+    if "kind" not in cols:
+        cur.execute("ALTER TABLE plots ADD COLUMN kind TEXT DEFAULT 'rent'")
+
+    # Удаляем товары, у которых магазин не существует или не принадлежит никакому магазину
+    cur.execute("""
+        DELETE FROM products
+        WHERE shop IS NULL OR shop = '' OR shop NOT IN (
+            SELECT title FROM plots WHERE kind = 'shop'
+        )
+    """)
+
     con.commit()
     con.close()
 
@@ -272,6 +291,8 @@ def api_create_product():
 
     if not item:
         return jsonify({"error": "Укажи предмет"}), 400
+    if not shop:
+        return jsonify({"error": "Выбери магазин"}), 400
 
     con = db()
     con.execute("""
