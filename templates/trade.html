@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Торговля — SUGROB SQUAD</title>
   <link rel="stylesheet" href="/static/style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
 
-  <!-- Боковое меню -->
   <div class="side-menu-overlay" id="sideMenuOverlay"></div>
   <aside class="side-menu" id="sideMenu">
     <div class="side-menu-head">
@@ -16,10 +16,10 @@
       <button id="closeSideMenu">✕</button>
     </div>
     <nav class="side-menu-nav">
-      <a href="/">🏠 Главная</a>
-      {% if user %}<a href="/profile">👤 Профиль</a>{% endif %}
-      <a href="/trade">🛒 Торговля</a>
-      <a href="/realty">🏠 Недвижимость</a>
+      <a href="/"><i data-lucide="home"></i> Главная</a>
+      {% if user %}<a href="/profile"><i data-lucide="user"></i> Профиль</a>{% endif %}
+      <a href="/trade"><i data-lucide="shopping-bag"></i> Торговля</a>
+      <a href="/realty"><i data-lucide="store"></i> Недвижимость</a>
     </nav>
   </aside>
 
@@ -40,10 +40,16 @@
       <h1>Товары</h1>
       <div class="page-actions">
         {% if user %}
-          <button class="icon-btn" id="openCreateProduct" title="Создать товар">+</button>
+          <button class="icon-btn" id="openCreateProduct" title="Создать товар">
+            <i data-lucide="plus"></i>
+          </button>
         {% endif %}
-        <button class="icon-btn" id="openSearch" title="Поиск">🔍</button>
-        <button class="icon-btn" id="openSort" title="Сортировка">⇅</button>
+        <button class="icon-btn" id="openSearch" title="Поиск">
+          <i data-lucide="search"></i>
+        </button>
+        <button class="icon-btn" id="openSort" title="Сортировка">
+          <i data-lucide="arrow-up-down"></i>
+        </button>
         <div class="sort-menu" id="sortMenu">
           <button data-sort="default">✓ По умолчанию</button>
           <button data-sort="asc">По возрастанию</button>
@@ -76,7 +82,6 @@
     </table>
   </main>
 
-  <!-- МОДАЛКА: создать товар -->
   <div class="modal-overlay" id="createProductModal">
     <div class="modal modal-lg">
       <button class="modal-close" data-close="createProductModal">✕</button>
@@ -130,7 +135,6 @@
     </div>
   </div>
 
-  <!-- МОДАЛКА: поиск -->
   <div class="modal-overlay" id="searchModal">
     <div class="modal">
       <button class="modal-close" data-close="searchModal">✕</button>
