@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template, redirect
-import sqlite3
+import psycopg2
+import psycopg2.extras
 import hashlib
 import secrets
 import os
@@ -7,7 +8,7 @@ import pathlib
 from werkzeug.utils import secure_filename
 
 BASE_DIR = pathlib.Path(__file__).parent
-DB = BASE_DIR / "sugrob.db"
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 UPLOAD_DIR = BASE_DIR / "static" / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -23,12 +24,12 @@ app = Flask(__name__)
 
 
 def init_db():
-    con = sqlite3.connect(DB)
+    con = psycopg2.connect(DATABASE_URL)
     cur = con.cursor()
 
     cur.execute("""
         CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             username TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
             nickname TEXT,
@@ -41,7 +42,7 @@ def init_db():
 
     cur.execute("""
         CREATE TABLE IF NOT EXISTS products (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             seller_id INTEGER NOT NULL,
             type TEXT DEFAULT 'shop',
             shop TEXT,
@@ -57,7 +58,7 @@ def init_db():
 
     cur.execute("""
         CREATE TABLE IF NOT EXISTS plots (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             owner_id INTEGER NOT NULL,
             map TEXT,
             title TEXT NOT NULL,
@@ -71,12 +72,15 @@ def init_db():
     """)
 
     # Миграция: добавить колонку kind, если её нет
-    cur.execute("PRAGMA table_info(plots)")
-    cols = [row[1] for row in cur.fetchall()]
+    cur.execute("""
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name = 'plots'
+    """)
+    cols = [row[0] for row in cur.fetchall()]
     if "kind" not in cols:
         cur.execute("ALTER TABLE plots ADD COLUMN kind TEXT DEFAULT 'rent'")
 
-    # Удаляем товары, у которых магазин не существует или не принадлежит никакому магазину
+    # Удаляем товары, у которых магазин не существует
     cur.execute("""
         DELETE FROM products
         WHERE shop IS NULL OR shop = '' OR shop NOT IN (
@@ -85,12 +89,13 @@ def init_db():
     """)
 
     con.commit()
+    cur.close()
     con.close()
 
 
 def db():
-    con = sqlite3.connect(DB)
-    con.row_factory = sqlite3.Row
+    con = psycopg2.connect(DATABASE_URL)
+    con.cursor_factory = psycopg2.extras.RealDictCursor
     return con
 
 
@@ -112,7 +117,10 @@ def current_user():
     if not token or token not in SESSIONS:
         return None
     con = db()
-    user = con.execute("SELECT * FROM users WHERE id = ?", (SESSIONS[token],)).fetchone()
+    cur = con.cursor()
+    cur.execute("SELECT * FROM users WHERE id = %s", (SESSIONS[token],))
+    user = cur.fetchone()
+    cur.close()
     con.close()
     return user
 
@@ -153,17 +161,21 @@ def api_register():
         return jsonify({"error": "Пароль минимум 6 символов"}), 400
 
     con = db()
-    exists = con.execute("SELECT id FROM users WHERE username = ?", (username,)).fetchone()
+    cur = con.cursor()
+    cur.execute("SELECT id FROM users WHERE username = %s", (username,))
+    exists = cur.fetchone()
     if exists:
+        cur.close()
         con.close()
         return jsonify({"error": "Такой ник уже занят"}), 400
 
-    cur = con.execute(
-        "INSERT INTO users (username, password, nickname) VALUES (?, ?, ?)",
+    cur.execute(
+        "INSERT INTO users (username, password, nickname) VALUES (%s, %s, %s) RETURNING id",
         (username, hash_pw(password), username),
     )
+    uid = cur.fetchone()["id"]
     con.commit()
-    uid = cur.lastrowid
+    cur.close()
     con.close()
 
     token = make_token(uid)
@@ -179,7 +191,10 @@ def api_login():
     password = data.get("password") or ""
 
     con = db()
-    user = con.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+    cur = con.cursor()
+    cur.execute("SELECT * FROM users WHERE username = %s", (username,))
+    user = cur.fetchone()
+    cur.close()
     con.close()
 
     if not user or user["password"] != hash_pw(password):
@@ -211,7 +226,7 @@ def api_get_profile():
             "id": u["id"], "username": u["username"],
             "nickname": u["nickname"] or u["username"],
             "about": u["about"] or "", "avatar": u["avatar"] or "",
-            "role": u["role"], "created_at": u["created_at"],
+            "role": u["role"], "created_at": u["created_at"].isoformat() if u["created_at"] else "",
         }
     })
 
@@ -223,11 +238,13 @@ def api_update_profile():
         return jsonify({"error": "Не авторизован"}), 401
     data = request.get_json() or {}
     con = db()
-    con.execute(
-        "UPDATE users SET nickname = ?, about = ?, avatar = ? WHERE id = ?",
+    cur = con.cursor()
+    cur.execute(
+        "UPDATE users SET nickname = %s, about = %s, avatar = %s WHERE id = %s",
         (data.get("nickname", ""), data.get("about", ""), data.get("avatar", ""), u["id"]),
     )
     con.commit()
+    cur.close()
     con.close()
     return jsonify({"success": True})
 
@@ -254,8 +271,10 @@ def api_upload_avatar():
     url = f"/static/uploads/{filename}"
 
     con = db()
-    con.execute("UPDATE users SET avatar = ? WHERE id = ?", (url, u["id"]))
+    cur = con.cursor()
+    cur.execute("UPDATE users SET avatar = %s WHERE id = %s", (url, u["id"]))
     con.commit()
+    cur.close()
     con.close()
     return jsonify({"success": True, "url": url})
 
@@ -264,12 +283,15 @@ def api_upload_avatar():
 @app.route("/api/products", methods=["GET"])
 def api_products():
     con = db()
-    rows = con.execute("""
+    cur = con.cursor()
+    cur.execute("""
         SELECT p.*, u.username, u.nickname, u.avatar
         FROM products p
         JOIN users u ON u.id = p.seller_id
         ORDER BY p.created_at DESC
-    """).fetchall()
+    """)
+    rows = cur.fetchall()
+    cur.close()
     con.close()
     return jsonify({"products": [dict(r) for r in rows]})
 
@@ -295,11 +317,13 @@ def api_create_product():
         return jsonify({"error": "Выбери магазин"}), 400
 
     con = db()
-    con.execute("""
+    cur = con.cursor()
+    cur.execute("""
         INSERT INTO products (seller_id, type, shop, item, description, quantity, measure, price)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
     """, (u["id"], ptype, shop, item, description, quantity, measure, price))
     con.commit()
+    cur.close()
     con.close()
     return jsonify({"success": True})
 
@@ -310,8 +334,10 @@ def api_delete_product(pid):
     if not u:
         return jsonify({"error": "Не авторизован"}), 401
     con = db()
-    con.execute("DELETE FROM products WHERE id = ? AND seller_id = ?", (pid, u["id"]))
+    cur = con.cursor()
+    cur.execute("DELETE FROM products WHERE id = %s AND seller_id = %s", (pid, u["id"]))
     con.commit()
+    cur.close()
     con.close()
     return jsonify({"success": True})
 
@@ -320,12 +346,15 @@ def api_delete_product(pid):
 @app.route("/api/plots", methods=["GET"])
 def api_plots():
     con = db()
-    rows = con.execute("""
+    cur = con.cursor()
+    cur.execute("""
         SELECT p.*, u.username, u.nickname
         FROM plots p
         JOIN users u ON u.id = p.owner_id
         ORDER BY p.created_at DESC
-    """).fetchall()
+    """)
+    rows = cur.fetchall()
+    cur.close()
     con.close()
     return jsonify({"plots": [dict(r) for r in rows]})
 
@@ -348,11 +377,13 @@ def api_create_plot():
         return jsonify({"error": "Укажи название"}), 400
 
     con = db()
-    con.execute("""
+    cur = con.cursor()
+    cur.execute("""
         INSERT INTO plots (owner_id, map, title, x, z, price, status, kind)
-        VALUES (?, ?, ?, ?, ?, ?, 'free', ?)
+        VALUES (%s, %s, %s, %s, %s, %s, 'free', %s)
     """, (u["id"], map_name, title, x, z, price, kind))
     con.commit()
+    cur.close()
     con.close()
     return jsonify({"success": True})
 
@@ -363,15 +394,20 @@ def api_rent_plot(pid):
     if not u:
         return jsonify({"error": "Не авторизован"}), 401
     con = db()
-    plot = con.execute("SELECT * FROM plots WHERE id = ?", (pid,)).fetchone()
+    cur = con.cursor()
+    cur.execute("SELECT * FROM plots WHERE id = %s", (pid,))
+    plot = cur.fetchone()
     if not plot:
+        cur.close()
         con.close()
         return jsonify({"error": "Объект не найден"}), 404
     if plot["status"] == "rented":
+        cur.close()
         con.close()
         return jsonify({"error": "Уже арендован"}), 400
-    con.execute("UPDATE plots SET status = 'rented' WHERE id = ?", (pid,))
+    cur.execute("UPDATE plots SET status = 'rented' WHERE id = %s", (pid,))
     con.commit()
+    cur.close()
     con.close()
     return jsonify({"success": True})
 
@@ -383,11 +419,14 @@ def api_my_shops():
     if not u:
         return jsonify({"error": "Не авторизован"}), 401
     con = db()
-    rows = con.execute("""
+    cur = con.cursor()
+    cur.execute("""
         SELECT id, title, map, x, z FROM plots
-        WHERE owner_id = ? AND kind = 'shop'
+        WHERE owner_id = %s AND kind = 'shop'
         ORDER BY created_at DESC
-    """, (u["id"],)).fetchall()
+    """, (u["id"],))
+    rows = cur.fetchall()
+    cur.close()
     con.close()
     return jsonify({"shops": [dict(r) for r in rows]})
 
