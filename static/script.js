@@ -1,5 +1,10 @@
 document.addEventListener("DOMContentLoaded", () => {
 
+  // ============ ИКОНКИ LUCIDE ============
+  if (window.lucide) {
+    lucide.createIcons();
+  }
+
   // ============ УТИЛИТА ============
   function escapeHtml(str) {
     if (!str) return "";
@@ -283,9 +288,11 @@ document.addEventListener("DOMContentLoaded", () => {
           <td>${p.price} AP</td>
           <td>${escapeHtml(p.shop || "—")}</td>
           <td>${new Date(p.created_at).toLocaleDateString("ru")}</td>
-          <td><button class="icon-btn" title="Удалить" data-del="${p.id}">🗑</button></td>
+          <td><button class="icon-btn" title="Удалить" data-del="${p.id}"><i data-lucide="trash-2"></i></button></td>
         </tr>
       `).join("");
+
+      if (window.lucide) lucide.createIcons();
 
       productsBody.querySelectorAll("[data-del]").forEach(btn => {
         btn.addEventListener("click", async () => {
@@ -360,7 +367,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // Поиск
     const searchModal = document.getElementById("searchModal");
     const openSearch = document.getElementById("openSearch");
     const applySearch = document.getElementById("applySearch");
@@ -375,7 +381,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // Сортировка
     const sortMenu = document.getElementById("sortMenu");
     const openSort = document.getElementById("openSort");
     if (openSort) openSort.addEventListener("click", () => sortMenu.classList.toggle("active"));
