@@ -433,7 +433,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loadProducts();
   }
 
-  // ============ НЕДВИЖИМОСТЬ ============
+    // ============ НЕДВИЖИМОСТЬ ============
   const plotsBody = document.getElementById("plotsBody");
   if (plotsBody) {
     let allPlots = [];
@@ -447,7 +447,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderPlots() {
       if (!allPlots.length) {
-        plotsBody.innerHTML = `<tr><td colspan="7" class="empty-row">Список участков пустой</td></tr>`;
+        plotsBody.innerHTML = `<tr><td colspan="7" class="empty-row">Список объектов пустой</td></tr>`;
         return;
       }
       plotsBody.innerHTML = allPlots.map(p => `
@@ -484,17 +484,33 @@ document.addEventListener("DOMContentLoaded", () => {
       openCreatePlot.addEventListener("click", () => createPlotModal.classList.add("active"));
     }
 
+    document.querySelectorAll("[data-plot-type]").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll("[data-plot-type]").forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+        const label = document.getElementById("mapLabel");
+        if (label) {
+          label.innerHTML = tab.dataset.plotType === "shop"
+            ? 'Магазин <span class="req">*</span>'
+            : 'Карта <span class="req">*</span>';
+        }
+      });
+    });
+
     if (createPlotForm) {
       createPlotForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         const err = document.getElementById("createPlotError");
         err.textContent = "";
+        const activeTab = document.querySelector("[data-plot-type].active");
+        const kind = activeTab ? activeTab.dataset.plotType : "rent";
         const data = {
           map: createPlotForm.map.value,
           title: createPlotForm.title.value,
           x: createPlotForm.x.value,
           z: createPlotForm.z.value,
           price: createPlotForm.price.value,
+          kind: kind,
         };
         const res = await fetch("/api/plots", {
           method: "POST",
@@ -512,4 +528,10 @@ document.addEventListener("DOMContentLoaded", () => {
     loadPlots();
   }
 
-});
+  // ============ УВЕДОМЛЕНИЯ ============
+  const openNotifications = document.getElementById("openNotifications");
+  if (openNotifications) {
+    openNotifications.addEventListener("click", () => {
+      alert("Уведомлений пока нет");
+    });
+  }
