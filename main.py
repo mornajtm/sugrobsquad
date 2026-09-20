@@ -5,10 +5,30 @@ import hashlib
 import secrets
 import os
 import pathlib
+from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
 from werkzeug.utils import secure_filename
 
 BASE_DIR = pathlib.Path(__file__).parent
-DATABASE_URL = os.environ.get("DATABASE_URL")
+
+
+def _clean_db_url(url: str) -> str:
+    """Убирает параметры, которые psycopg2 не понимает (connection_limit и т.п.)."""
+    if not url:
+        return url
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    try:
+        parsed = urlparse(url)
+        allowed = {"sslmode", "connect_timeout", "application_name"}
+        query = dict(parse_qsl(parsed.query))
+        clean_query = {k: v for k, v in query.items() if k in allowed}
+        cleaned = parsed._replace(query=urlencode(clean_query))
+        return urlunparse(cleaned)
+    except Exception:
+        return url
+
+
+DATABASE_URL = _clean_db_url(os.environ.get("DATABASE_URL", ""))
 
 UPLOAD_DIR = BASE_DIR / "static" / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -24,7 +44,7 @@ app = Flask(__name__)
 
 
 def init_db():
-    con = psycopg2.connect(DATABASE_URL)
+    con = psycopg2.connect(DATABASE_URL, sslmode="require")
     cur = con.cursor()
 
     cur.execute("""
@@ -94,7 +114,7 @@ def init_db():
 
 
 def db():
-    con = psycopg2.connect(DATABASE_URL)
+    con = psycopg2.connect(DATABASE_URL, sslmode="require")
     con.cursor_factory = psycopg2.extras.RealDictCursor
     return con
 
@@ -226,7 +246,8 @@ def api_get_profile():
             "id": u["id"], "username": u["username"],
             "nickname": u["nickname"] or u["username"],
             "about": u["about"] or "", "avatar": u["avatar"] or "",
-            "role": u["role"], "created_at": u["created_at"].isoformat() if u["created_at"] else "",
+            "role": u["role"],
+            "created_at": u["created_at"].isoformat() if u["created_at"] else "",
         }
     })
 
@@ -293,7 +314,13 @@ def api_products():
     rows = cur.fetchall()
     cur.close()
     con.close()
-    return jsonify({"products": [dict(r) for r in rows]})
+    result = []
+    for r in rows:
+        d = dict(r)
+        if d.get("created_at"):
+            d["created_at"] = d["created_at"].isoformat()
+        result.append(d)
+    return jsonify({"products": result})
 
 
 @app.route("/api/products", methods=["POST"])
@@ -356,7 +383,13 @@ def api_plots():
     rows = cur.fetchall()
     cur.close()
     con.close()
-    return jsonify({"plots": [dict(r) for r in rows]})
+    result = []
+    for r in rows:
+        d = dict(r)
+        if d.get("created_at"):
+            d["created_at"] = d["created_at"].isoformat()
+        result.append(d)
+    return jsonify({"plots": result})
 
 
 @app.route("/api/plots", methods=["POST"])
