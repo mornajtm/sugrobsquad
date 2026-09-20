@@ -8,31 +8,37 @@
 </head>
 <body>
   <header class="topbar">
+    <button class="burger">☰</button>
     <a href="/" class="logo">❄️ SUGROB SQUAD</a>
-    <nav>
+    <div class="topbar-right">
       {% if user %}
-        <a href="/profile" class="nav-btn">Профиль</a>
+        <a href="/profile" class="nav-btn">👤 {{ user.nickname or user.username }}</a>
       {% else %}
-        <a href="/login" class="nav-btn">Войти</a>
-        <a href="/register" class="nav-btn primary">Регистрация</a>
+        <button class="nav-btn" id="openAuthBtn">👤 Войти</button>
       {% endif %}
-    </nav>
+    </div>
   </header>
 
   <main class="container">
-    <section class="hero card">
-      <h1>❄️ SUGROB SQUAD</h1>
-      <p class="subtitle">Твоё идеальное игровое сообщество 🎮</p>
-      {% if not user %}
-      <div class="btn-row">
-        <a href="/register" class="btn primary">Начать</a>
-        <a href="/login" class="btn">Войти</a>
+    <section class="hero">
+      <div class="hero-text">
+        <h1>SUGROB SQUAD<br>твоё игровое сообщество</h1>
+        <p class="subtitle">
+          Кооперативные игры, честное выживание, дружная команда
+          без лишней перегрузки
+        </p>
+        <div class="btn-row-left">
+          {% if user %}
+            <a href="/profile" class="btn primary big">Мой профиль</a>
+          {% else %}
+            <button class="btn primary big" id="startPlayBtn">Начать играть</button>
+          {% endif %}
+          <button class="btn big" onclick="copyIP()">📋 sugrob.squad</button>
+        </div>
       </div>
-      {% else %}
-      <div class="btn-row">
-        <a href="/profile" class="btn primary">Мой профиль</a>
+      <div class="hero-image">
+        <div class="skin-placeholder">🎮</div>
       </div>
-      {% endif %}
     </section>
 
     <section class="card">
@@ -61,6 +67,50 @@
       <a href="https://discord.gg/5aYZZbJu3" target="_blank" class="btn primary big">🚀 Discord сквада</a>
     </section>
   </main>
+
+  {% if not user %}
+  <div class="modal-overlay" id="authModal">
+    <div class="modal">
+      <button class="modal-close" id="closeAuthBtn">✕</button>
+      <h2 class="modal-title">Войти в систему</h2>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="login">Войти</button>
+        <button class="tab" data-tab="register">Зарегистрироваться</button>
+      </div>
+
+      <!-- ВХОД -->
+      <form id="loginForm" class="tab-content active">
+        <label>Ник <span class="req">*</span></label>
+        <input type="text" name="username" placeholder="Zakatis" required>
+
+        <label>Пароль <span class="req">*</span></label>
+        <div class="password-wrap">
+          <input type="password" name="password" placeholder="••••••••••" required>
+          <button type="button" class="eye" onclick="togglePass(this)">👁</button>
+        </div>
+
+        <p class="err" id="loginError"></p>
+        <button type="submit" class="btn primary full">Подтвердить</button>
+      </form>
+
+      <!-- РЕГИСТРАЦИЯ (без email) -->
+      <form id="registerForm" class="tab-content">
+        <label>Ник <span class="req">*</span></label>
+        <input type="text" name="username" placeholder="Zakatis" required>
+
+        <label>Пароль <span class="req">*</span></label>
+        <div class="password-wrap">
+          <input type="password" name="password" placeholder="Минимум 6 символов" required>
+          <button type="button" class="eye" onclick="togglePass(this)">👁</button>
+        </div>
+
+        <p class="err" id="registerError"></p>
+        <button type="submit" class="btn primary full">Создать аккаунт</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
 
   <script src="/static/script.js"></script>
 </body>
