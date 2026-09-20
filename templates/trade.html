@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Торговля — SUGROB SQUAD</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <!-- Боковое меню -->
+  <div class="side-menu-overlay" id="sideMenuOverlay"></div>
+  <aside class="side-menu" id="sideMenu">
+    <div class="side-menu-head">
+      <span>Меню</span>
+      <button id="closeSideMenu">✕</button>
+    </div>
+    <nav class="side-menu-nav">
+      <a href="/">🏠 Главная</a>
+      {% if user %}<a href="/profile">👤 Профиль</a>{% endif %}
+      <a href="/trade">🛒 Торговля</a>
+      <a href="/realty">🏠 Недвижимость</a>
+    </nav>
+  </aside>
+
+  <header class="topbar">
+    <button class="burger">☰</button>
+    <a href="/" class="logo">❄️ SUGROB SQUAD</a>
+    <div class="topbar-right">
+      {% if user %}
+        <a href="/profile" class="nav-btn">👤 {{ user.nickname or user.username }}</a>
+      {% else %}
+        <a href="/" class="nav-btn">👤 Войти</a>
+      {% endif %}
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="page-head">
+      <h1>Товары</h1>
+      <div class="page-actions">
+        {% if user %}
+          <button class="icon-btn" id="openCreateProduct" title="Создать товар">+</button>
+        {% endif %}
+        <button class="icon-btn" id="openSearch" title="Поиск">🔍</button>
+        <button class="icon-btn" id="openSort" title="Сортировка">⇅</button>
+        <div class="sort-menu" id="sortMenu">
+          <button data-sort="default">✓ По умолчанию</button>
+          <button data-sort="asc">По возрастанию</button>
+          <button data-sort="desc">По убыванию</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tabs-row">
+      <button class="tabline active" data-filter="active">Активные</button>
+      <button class="tabline" data-filter="mine">Мои</button>
+      <button class="tabline" data-filter="all">Все</button>
+    </div>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Продавец</th>
+          <th>Предмет</th>
+          <th>Количество</th>
+          <th>Цена</th>
+          <th>Магазин</th>
+          <th>Обновлено</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="productsBody">
+        <tr><td colspan="7" class="empty-row">Загрузка...</td></tr>
+      </tbody>
+    </table>
+  </main>
+
+  <!-- МОДАЛКА: создать товар -->
+  <div class="modal-overlay" id="createProductModal">
+    <div class="modal modal-lg">
+      <button class="modal-close" data-close="createProductModal">✕</button>
+      <h2 class="modal-title">Создать Товар</h2>
+
+      <div class="switch-tabs">
+        <button class="switch-tab active" data-type="shop">Магазин</button>
+        <button class="switch-tab" data-type="rent">Аренда</button>
+      </div>
+
+      <form id="createProductForm" class="modal-form">
+        <label id="shopLabel">Магазин <span class="req">*</span></label>
+        <select name="shop" id="shopSelect">
+          <option value="">Магазин</option>
+          <option value="Магазин Пушок">Магазин Пушок</option>
+          <option value="IdShop (Портал)">IdShop (Портал)</option>
+          <option value="ShopПушистик">ShopПушистик</option>
+        </select>
+
+        <label>Предмет <span class="req">*</span></label>
+        <select name="item" required>
+          <option value="">Предмет</option>
+          <option value="Жареная свинина">Жареная свинина</option>
+          <option value="Железный блок">Железный блок</option>
+          <option value="Золотой блок">Золотой блок</option>
+          <option value="Алмазный блок">Алмазный блок</option>
+          <option value="Чародейская книга">Чародейская книга</option>
+          <option value="Тотем бессмертия">Тотем бессмертия</option>
+          <option value="Яйцо призыва шалкера">Яйцо призыва шалкера</option>
+        </select>
+
+        <label>Описание</label>
+        <input name="description" placeholder="Описание">
+
+        <label>Количество <span class="req">*</span></label>
+        <input type="number" name="quantity" value="1" min="1" required>
+
+        <label>Мера <span class="req">*</span></label>
+        <div class="radio-row">
+          <label><input type="radio" name="measure" value="Штук" checked> Штук</label>
+          <label><input type="radio" name="measure" value="Стая"> Стая</label>
+          <label><input type="radio" name="measure" value="Шалкер"> Шалкер</label>
+        </div>
+
+        <label>Цена <span class="req">*</span></label>
+        <input type="number" name="price" value="1" min="1" required>
+
+        <p class="err" id="createProductError"></p>
+        <button type="submit" class="btn full">Подтвердить</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- МОДАЛКА: поиск -->
+  <div class="modal-overlay" id="searchModal">
+    <div class="modal">
+      <button class="modal-close" data-close="searchModal">✕</button>
+      <h2 class="modal-title">Поиск</h2>
+      <div class="modal-form">
+        <label>Идентификатор</label>
+        <input id="searchId" placeholder="Идентификатор">
+        <label>Игрок</label>
+        <input id="searchPlayer" placeholder="Игрок">
+        <label>Предмет</label>
+        <input id="searchItem" placeholder="Предмет">
+        <button type="button" class="btn full" id="applySearch">Подтвердить</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>
