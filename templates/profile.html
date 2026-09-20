@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Профиль — SUGROB SQUAD</title>
   <link rel="stylesheet" href="/static/style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
 
-  <!-- ============ БОКОВОЕ МЕНЮ ============ -->
   <div class="side-menu-overlay" id="sideMenuOverlay"></div>
   <aside class="side-menu" id="sideMenu">
     <div class="side-menu-head">
@@ -16,14 +16,13 @@
       <button id="closeSideMenu">✕</button>
     </div>
     <nav class="side-menu-nav">
-      <a href="/">🏠 Главная</a>
-      <a href="/profile">👤 Профиль</a>
-      <a href="/trade">🛒 Торговля</a>
-      <a href="/realty">🏠 Недвижимость</a>
+      <a href="/"><i data-lucide="home"></i> Главная</a>
+      <a href="/profile"><i data-lucide="user"></i> Профиль</a>
+      <a href="/trade"><i data-lucide="shopping-bag"></i> Торговля</a>
+      <a href="/realty"><i data-lucide="store"></i> Недвижимость</a>
     </nav>
   </aside>
 
-  <!-- ============ ТОПБАР ============ -->
   <header class="topbar">
     <button class="burger">☰</button>
     <a href="/" class="logo">❄️ SUGROB SQUAD</a>
@@ -32,7 +31,6 @@
     </div>
   </header>
 
-  <!-- ============ КОНТЕНТ ============ -->
   <main class="container narrow">
     <div class="card" id="profileCard">
       <p class="muted">Загрузка...</p>
