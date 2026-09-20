@@ -7,6 +7,25 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+
+  <!-- ============ БОКОВОЕ МЕНЮ ============ -->
+  <div class="side-menu-overlay" id="sideMenuOverlay"></div>
+  <aside class="side-menu" id="sideMenu">
+    <div class="side-menu-head">
+      <span>Меню</span>
+      <button id="closeSideMenu">✕</button>
+    </div>
+    <nav class="side-menu-nav">
+      <a href="/">🏠 Главная</a>
+      {% if user %}
+        <a href="/profile">👤 Профиль</a>
+      {% endif %}
+      <a href="/trade">🛒 Торговля</a>
+      <a href="/realty">🏠 Недвижимость</a>
+    </nav>
+  </aside>
+
+  <!-- ============ ТОПБАР ============ -->
   <header class="topbar">
     <button class="burger">☰</button>
     <a href="/" class="logo">❄️ SUGROB SQUAD</a>
@@ -19,7 +38,9 @@
     </div>
   </header>
 
+  <!-- ============ КОНТЕНТ ============ -->
   <main class="container">
+
     <section class="hero">
       <div class="hero-text">
         <h1>SUGROB SQUAD<br>твоё игровое сообщество</h1>
@@ -60,7 +81,6 @@
       целую вселенную со своими правилами, ценностями и легендами.</p>
     </section>
 
-    <!-- Блок, к которому будем скроллить -->
     <section class="card cta" id="joinSection">
       <h2>❤️‍🔥 Присоединяйся к нам!</h2>
       <p>Смело заходи в наш Discord — там намного больше информации.
@@ -69,8 +89,10 @@
         🚀 Discord сквада
       </a>
     </section>
+
   </main>
 
+  <!-- ============ МОДАЛКА АВТОРИЗАЦИИ ============ -->
   {% if not user %}
   <div class="modal-overlay" id="authModal">
     <div class="modal">
@@ -82,6 +104,7 @@
         <button class="tab" data-tab="register">Зарегистрироваться</button>
       </div>
 
+      <!-- ВХОД -->
       <form id="loginForm" class="tab-content active">
         <label>Ник <span class="req">*</span></label>
         <input type="text" name="username" placeholder="Zakatis" required>
@@ -96,6 +119,7 @@
         <button type="submit" class="btn primary full">Подтвердить</button>
       </form>
 
+      <!-- РЕГИСТРАЦИЯ -->
       <form id="registerForm" class="tab-content">
         <label>Ник <span class="req">*</span></label>
         <input type="text" name="username" placeholder="Zakatis" required>
