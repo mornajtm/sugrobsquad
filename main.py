@@ -11,8 +11,7 @@ from werkzeug.utils import secure_filename
 BASE_DIR = pathlib.Path(__file__).parent
 
 
-def _clean_db_url(url: str) -> str:
-    """Убирает параметры, которые psycopg2 не понимает (connection_limit и т.п.)."""
+def _clean_db_url(url):
     if not url:
         return url
     if url.startswith("postgres://"):
@@ -44,7 +43,7 @@ app = Flask(__name__)
 
 
 def init_db():
-    con = psycopg2.connect(DATABASE_URL, sslmode="require")
+    con = psycopg2.connect(DATABASE_URL)
     cur = con.cursor()
 
     cur.execute("""
@@ -91,7 +90,6 @@ def init_db():
         )
     """)
 
-    # Миграция: добавить колонку kind, если её нет
     cur.execute("""
         SELECT column_name FROM information_schema.columns
         WHERE table_name = 'plots'
@@ -100,7 +98,6 @@ def init_db():
     if "kind" not in cols:
         cur.execute("ALTER TABLE plots ADD COLUMN kind TEXT DEFAULT 'rent'")
 
-    # Удаляем товары, у которых магазин не существует
     cur.execute("""
         DELETE FROM products
         WHERE shop IS NULL OR shop = '' OR shop NOT IN (
@@ -114,7 +111,7 @@ def init_db():
 
 
 def db():
-    con = psycopg2.connect(DATABASE_URL, sslmode="require")
+    con = psycopg2.connect(DATABASE_URL)
     con.cursor_factory = psycopg2.extras.RealDictCursor
     return con
 
@@ -243,9 +240,11 @@ def api_get_profile():
         return jsonify({"error": "Не авторизован"}), 401
     return jsonify({
         "user": {
-            "id": u["id"], "username": u["username"],
+            "id": u["id"],
+            "username": u["username"],
             "nickname": u["nickname"] or u["username"],
-            "about": u["about"] or "", "avatar": u["avatar"] or "",
+            "about": u["about"] or "",
+            "avatar": u["avatar"] or "",
             "role": u["role"],
             "created_at": u["created_at"].isoformat() if u["created_at"] else "",
         }
@@ -285,11 +284,11 @@ def api_upload_avatar():
         return jsonify({"error": "Разрешены png, jpg, jpeg, gif, webp"}), 400
 
     ext = f.filename.rsplit(".", 1)[1].lower()
-    filename = f"avatar_{u['id']}_{secrets.token_hex(6)}.{ext}"
+    filename = "avatar_" + str(u["id"]) + "_" + secrets.token_hex(6) + "." + ext
     save_path = UPLOAD_DIR / filename
     f.save(str(save_path))
 
-    url = f"/static/uploads/{filename}"
+    url = "/static/uploads/" + filename
 
     con = db()
     cur = con.cursor()
