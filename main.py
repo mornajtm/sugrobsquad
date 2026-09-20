@@ -61,6 +61,7 @@ def init_db():
             z INTEGER DEFAULT 0,
             price INTEGER DEFAULT 1,
             status TEXT DEFAULT 'free',
+            kind TEXT DEFAULT 'rent',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -97,7 +98,6 @@ def current_user():
     return user
 
 
-# ============ СТРАНИЦЫ ============
 @app.route("/")
 def home():
     return render_template("index.html", user=current_user())
@@ -325,15 +325,16 @@ def api_create_plot():
     x = int(data.get("x") or 0)
     z = int(data.get("z") or 0)
     price = int(data.get("price") or 1)
+    kind = data.get("kind", "rent")
 
     if not title:
         return jsonify({"error": "Укажи название"}), 400
 
     con = db()
     con.execute("""
-        INSERT INTO plots (owner_id, map, title, x, z, price, status)
-        VALUES (?, ?, ?, ?, ?, ?, 'free')
-    """, (u["id"], map_name, title, x, z, price))
+        INSERT INTO plots (owner_id, map, title, x, z, price, status, kind)
+        VALUES (?, ?, ?, ?, ?, ?, 'free', ?)
+    """, (u["id"], map_name, title, x, z, price, kind))
     con.commit()
     con.close()
     return jsonify({"success": True})
@@ -348,7 +349,7 @@ def api_rent_plot(pid):
     plot = con.execute("SELECT * FROM plots WHERE id = ?", (pid,)).fetchone()
     if not plot:
         con.close()
-        return jsonify({"error": "Участок не найден"}), 404
+        return jsonify({"error": "Объект не найден"}), 404
     if plot["status"] == "rented":
         con.close()
         return jsonify({"error": "Уже арендован"}), 400
