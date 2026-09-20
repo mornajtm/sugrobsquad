@@ -295,7 +295,7 @@ def api_delete_product(pid):
     return jsonify({"success": True})
 
 
-# ============ УЧАСТКИ ============
+# ============ УЧАСТКИ / МАГАЗИНЫ ============
 @app.route("/api/plots", methods=["GET"])
 def api_plots():
     con = db()
@@ -353,6 +353,22 @@ def api_rent_plot(pid):
     con.commit()
     con.close()
     return jsonify({"success": True})
+
+
+# ============ МОИ МАГАЗИНЫ ============
+@app.route("/api/my-shops", methods=["GET"])
+def api_my_shops():
+    u = current_user()
+    if not u:
+        return jsonify({"error": "Не авторизован"}), 401
+    con = db()
+    rows = con.execute("""
+        SELECT id, title, map, x, z FROM plots
+        WHERE owner_id = ? AND kind = 'shop'
+        ORDER BY created_at DESC
+    """, (u["id"],)).fetchall()
+    con.close()
+    return jsonify({"shops": [dict(r) for r in rows]})
 
 
 init_db()
