@@ -9,7 +9,7 @@
 </head>
 <body>
 
-  <!-- ============ БОКОВОЕ МЕНЮ ============ -->
+  <!-- Боковое меню -->
   <div class="side-menu-overlay" id="sideMenuOverlay"></div>
   <aside class="side-menu" id="sideMenu">
     <div class="side-menu-head">
@@ -24,20 +24,24 @@
     </nav>
   </aside>
 
-  <!-- ============ ТОПБАР ============ -->
+  <!-- Топбар -->
   <header class="topbar">
-    <button class="burger">☰</button>
-    <a href="/" class="logo">❄️ SUGROB SQUAD</a>
+    <button class="burger"><i data-lucide="menu"></i></button>
+    <a href="/" class="logo">SUGROB SQUAD</a>
     <div class="topbar-right">
       {% if user %}
-        <a href="/profile" class="nav-btn">👤 {{ user.nickname or user.username }}</a>
+        <a href="/profile" class="nav-btn">
+          <i data-lucide="user"></i> {{ user.nickname or user.username }}
+        </a>
       {% else %}
-        <button class="nav-btn" id="openAuthBtn">👤 Войти</button>
+        <button class="nav-btn" id="openAuthBtn">
+          <i data-lucide="log-in"></i> Войти
+        </button>
       {% endif %}
     </div>
   </header>
 
-  <!-- ============ КОНТЕНТ ============ -->
+  <!-- Контент -->
   <main class="container">
 
     <section class="hero">
@@ -49,9 +53,13 @@
         </p>
         <div class="btn-row-left">
           {% if user %}
-            <a href="/profile" class="btn primary big">Мой профиль</a>
+            <a href="/profile" class="btn primary big">
+              <i data-lucide="user"></i> Мой профиль
+            </a>
           {% else %}
-            <button class="btn primary big" id="joinSquadBtn">🤝 Вступить в сквад</button>
+            <button class="btn primary big" id="joinSquadBtn">
+              <i data-lucide="handshake"></i> Вступить в сквад
+            </button>
           {% endif %}
         </div>
       </div>
@@ -61,37 +69,37 @@
     </section>
 
     <section class="card">
-      <h2>👑 Хочешь быть частью настоящей команды?</h2>
+      <h2><i data-lucide="crown"></i> Хочешь быть частью настоящей команды?</h2>
       <p>Мы объединяем игроков, для которых игры — это не только про механики и цифры,
       а про эмоции и совместные победы. Наш сквад — как государство со структурой
       и законами: каждый важен, каждый — часть целого.</p>
     </section>
 
     <section class="card">
-      <h2>🎲 Мы рубимся в самые разные игры</h2>
+      <h2><i data-lucide="gamepad-2"></i> Мы рубимся в самые разные игры</h2>
       <p>Здесь можно сыграть во многие кооперативные игры вместе — строительство,
       тактика, коллективные решения. Тут всегда найдётся место и для серьёзного
       обсуждения, и для шуток, и для поддержки.</p>
     </section>
 
     <section class="card">
-      <h2>🏛️ Своя уникальная система взаимодействия</h2>
+      <h2><i data-lucide="landmark"></i> Своя уникальная система взаимодействия</h2>
       <p>Иерархия от новичков до ветеранов, награды, почётные титулы. Мы создаём
       целую вселенную со своими правилами, ценностями и легендами.</p>
     </section>
 
     <section class="card cta" id="joinSection">
-      <h2>❤️‍🔥 Присоединяйся к нам!</h2>
+      <h2><i data-lucide="heart"></i> Присоединяйся к нам!</h2>
       <p>Смело заходи в наш Discord — там намного больше информации.
       Мы уже ждём тебя, чтобы вместе отправиться в новое игровое приключение!</p>
       <a href="https://discord.gg/5aYZZbJu3" target="_blank" class="btn primary big">
-        🚀 Discord сквада
+        <i data-lucide="send"></i> Discord сквада
       </a>
     </section>
 
   </main>
 
-  <!-- ============ МОДАЛКА АВТОРИЗАЦИИ ============ -->
+  <!-- Модалка авторизации -->
   {% if not user %}
   <div class="modal-overlay" id="authModal">
     <div class="modal">
