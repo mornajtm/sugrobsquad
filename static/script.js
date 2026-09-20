@@ -228,3 +228,174 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
 });
+  // ============ ТОРГОВЛЯ ============
+  const productsBody = document.getElementById("productsBody");
+  if (productsBody) {
+    let allProducts = [];
+    let currentFilter = "active";
+    let currentSort = "default";
+    let searchQuery = { id: "", player: "", item: "" };
+
+    async function loadProducts() {
+      const res = await fetch("/api/products");
+      const data = await res.json();
+      allProducts = data.products || [];
+      renderProducts();
+    }
+
+    function renderProducts() {
+      let list = [...allProducts];
+
+      if (currentFilter === "active") list = list.filter(p => p.status === "active");
+      if (currentFilter === "mine") list = list.filter(p => p.is_mine);
+
+      if (searchQuery.id) list = list.filter(p => String(p.id).includes(searchQuery.id));
+      if (searchQuery.player) list = list.filter(p => (p.nickname || p.username || "").toLowerCase().includes(searchQuery.player.toLowerCase()));
+      if (searchQuery.item) list = list.filter(p => (p.item || "").toLowerCase().includes(searchQuery.item.toLowerCase()));
+
+      if (currentSort === "asc") list.sort((a, b) => a.price - b.price);
+      if (currentSort === "desc") list.sort((a, b) => b.price - a.price);
+
+      if (!list.length) {
+        productsBody.innerHTML = `<tr><td colspan="7" class="empty-row">Список товаров пустой</td></tr>`;
+        return;
+      }
+
+      productsBody.innerHTML = list.map(p => `
+        <tr>
+          <td>
+            <div class="seller-cell">
+              <div class="seller-avatar">${p.avatar ? `<img src="${escapeHtml(p.avatar)}">` : "🎮"}</div>
+              <div>
+                <div class="seller-name">${escapeHtml(p.nickname || p.username)}</div>
+                <div class="seller-role">Продавец</div>
+              </div>
+            </div>
+          </td>
+          <td>${escapeHtml(p.item)}</td>
+          <td>${p.quantity} * 1 ${escapeHtml(p.measure)}</td>
+          <td>${p.price} AP</td>
+          <td>${escapeHtml(p.shop || "—")}</td>
+          <td>${new Date(p.created_at).toLocaleDateString("ru")}</td>
+          <td><button class="icon-btn" title="Удалить" data-del="${p.id}">🗑</button></td>
+        </tr>
+      `).join("");
+
+      productsBody.querySelectorAll("[data-del]").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("Удалить товар?")) return;
+          await fetch(`/api/products/${btn.dataset.del}`, { method: "DELETE" });
+          loadProducts();
+        });
+      });
+    }
+
+    document.querySelectorAll(".tabline").forEach(t => {
+      t.addEventListener("click", () => {
+        document.querySelectorAll(".tabline").forEach(x => x.classList.remove("active"));
+        t.classList.add("active");
+        currentFilter = t.dataset.filter;
+        renderProducts();
+      });
+    });
+
+    // Модалка создания товара
+    const createProductModal = document.getElementById("createProductModal");
+    const createProductForm = document.getElementById("createProductForm");
+    const openCreateProduct = document.getElementById("openCreateProduct");
+
+    if (openCreateProduct) {
+      openCreateProduct.addEventListener("click", () => {
+        createProductModal.classList.add("active");
+      });
+    }
+
+    document.querySelectorAll("[data-close]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const m = document.getElementById(btn.dataset.close);
+        if (m) m.classList.remove("active");
+      });
+    });
+
+    document.querySelectorAll(".switch-tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".switch-tab").forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+        const label = document.getElementById("shopLabel");
+        if (label) label.textContent = tab.dataset.type === "rent" ? "Аренда *" : "Магазин *";
+      });
+    });
+
+    if (createProductForm) {
+      createProductForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const err = document.getElementById("createProductError");
+        err.textContent = "";
+        const type = document.querySelector(".switch-tab.active")?.dataset.type || "shop";
+        const data = {
+          type,
+          shop: createProductForm.shop.value,
+          item: createProductForm.item.value,
+          description: createProductForm.description.value,
+          quantity: createProductForm.quantity.value,
+          measure: createProductForm.querySelector('input[name="measure"]:checked').value,
+          price: createProductForm.price.value,
+        };
+        const res = await fetch("/api/products", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const json = await res.json();
+        if (!res.ok) return (err.textContent = json.error || "Ошибка");
+        createProductModal.classList.remove("active");
+        createProductForm.reset();
+        loadProducts();
+      });
+    }
+
+    // Поиск
+    const searchModal = document.getElementById("searchModal");
+    const openSearch = document.getElementById("openSearch");
+    const applySearch = document.getElementById("applySearch");
+    if (openSearch) openSearch.addEventListener("click", () => searchModal.classList.add("active"));
+    if (applySearch) {
+      applySearch.addEventListener("click", () => {
+        searchQuery.id = document.getElementById("searchId").value;
+        searchQuery.player = document.getElementById("searchPlayer").value;
+        searchQuery.item = document.getElementById("searchItem").value;
+        searchModal.classList.remove("active");
+        renderProducts();
+      });
+    }
+
+    // Сортировка
+    const sortMenu = document.getElementById("sortMenu");
+    const openSort = document.getElementById("openSort");
+    if (openSort) openSort.addEventListener("click", () => sortMenu.classList.toggle("active"));
+    document.querySelectorAll("#sortMenu button").forEach(b => {
+      b.addEventListener("click", () => {
+        currentSort = b.dataset.sort;
+        sortMenu.classList.remove("active");
+        renderProducts();
+      });
+    });
+
+    loadProducts();
+  }
+
+  // ============ НЕДВИЖИМОСТЬ ============
+  const plotsBody = document.getElementById("plotsBody");
+  if (plotsBody) {
+    let allPlots = [];
+
+    async function loadPlots() {
+      const res = await fetch("/api/plots");
+      const data = await res.json();
+      allPlots = data.plots || [];
+      renderPlots();
+    }
+
+    function renderPlots() {
+      if (!allPlots.length) {
+        plotsBody.innerHTML = `<tr><td colspan="7" class="empty-row">Список участков пустой</td></tr>
