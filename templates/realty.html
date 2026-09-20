@@ -24,23 +24,37 @@
   </aside>
 
   <header class="topbar">
-    <button class="burger">☰</button>
-    <a href="/" class="logo">❄️ SUGROB SQUAD</a>
+    <button class="burger"><i data-lucide="menu"></i></button>
+    <a href="/" class="logo">SUGROB SQUAD</a>
     <div class="topbar-right">
       {% if user %}
-        <a href="/profile" class="nav-btn">👤 {{ user.nickname or user.username }}</a>
+        <button class="icon-btn" id="openNotifications" title="Уведомления">
+          <i data-lucide="bell"></i>
+          <span class="notif-badge" id="notifBadge" style="display:none">0</span>
+        </button>
+        <a href="/profile" class="user-chip">
+          <span class="user-chip-avatar">
+            {% if user.avatar %}
+              <img src="{{ user.avatar }}" alt="">
+            {% else %}
+              <i data-lucide="user"></i>
+            {% endif %}
+          </span>
+        </a>
       {% else %}
-        <a href="/" class="nav-btn">👤 Войти</a>
+        <a href="/" class="nav-btn">
+          <i data-lucide="log-in"></i> Войти
+        </a>
       {% endif %}
     </div>
   </header>
 
   <main class="container">
     <div class="page-head">
-      <h1>Аренда</h1>
+      <h1>Недвижимость</h1>
       <div class="page-actions">
         {% if user %}
-          <button class="icon-btn" id="openCreatePlot" title="Создать участок">
+          <button class="icon-btn" id="openCreatePlot" title="Создать объект">
             <i data-lucide="plus"></i>
           </button>
         {% endif %}
@@ -48,9 +62,8 @@
     </div>
 
     <div class="tabs-row">
-      <button class="tabline active">Палатки</button>
-      <button class="tabline">Дома</button>
-      <button class="tabline">Склады</button>
+      <button class="tabline active">Аренда</button>
+      <button class="tabline">Магазины</button>
     </div>
 
     <table class="data-table">
@@ -72,11 +85,17 @@
   </main>
 
   <div class="modal-overlay" id="createPlotModal">
-    <div class="modal">
+    <div class="modal modal-lg">
       <button class="modal-close" data-close="createPlotModal">✕</button>
-      <h2 class="modal-title">Создать Участок</h2>
+      <h2 class="modal-title">Создать Объект</h2>
+
+      <div class="switch-tabs">
+        <button class="switch-tab active" data-plot-type="rent">Аренда</button>
+        <button class="switch-tab" data-plot-type="shop">Магазин</button>
+      </div>
+
       <form id="createPlotForm" class="modal-form">
-        <label>Карта <span class="req">*</span></label>
+        <label id="mapLabel">Карта <span class="req">*</span></label>
         <select name="map">
           <option value="">Карта</option>
           <option value="Overworld">Overworld</option>
