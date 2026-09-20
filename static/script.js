@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
     input.type = input.type === "password" ? "text" : "password";
   };
 
-  // ============ РЕГИСТРАЦИЯ ============
+    // ============ РЕГИСТРАЦИЯ ============
   const registerForm = document.getElementById("registerForm");
   if (registerForm) {
     registerForm.addEventListener("submit", async (e) => {
@@ -68,7 +68,32 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         const json = await res.json();
         if (!res.ok) { err.textContent = json.error || "Ошибка"; return; }
-        window.location.href = "/profile";
+
+        // Успех: переключаемся на вкладку "Войти" и сообщаем
+        err.style.color = "#2a8";
+        err.textContent = "Аккаунт создан! Теперь войди.";
+
+        // Сброс формы регистрации
+        registerForm.reset();
+
+        // Переключить на вкладку Войти через 1 секунду
+        setTimeout(() => {
+          const loginTab = document.querySelector('.tab[data-tab="login"]');
+          if (loginTab) loginTab.click();
+
+          // Перенести ник в поле логина, если получится
+          const loginUsername = document.querySelector('#loginForm input[name="username"]');
+          if (loginUsername) {
+            loginUsername.value = registerForm.username.value.trim() || "";
+          }
+
+          // Обнулить ошибку через 3 секунды
+          setTimeout(() => {
+            err.textContent = "";
+            err.style.color = "";
+          }, 3000);
+        }, 800);
+
       } catch (ex) {
         err.textContent = "Сервер не отвечает";
       }
