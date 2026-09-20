@@ -4,6 +4,7 @@ import hashlib
 import secrets
 import os
 import pathlib
+from werkzeug.utils import secure_filename
 
 BASE_DIR = pathlib.Path(__file__).parent
 DB = BASE_DIR / "sugrob.db"
