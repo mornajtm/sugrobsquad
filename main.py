@@ -1,170 +1,171 @@
-// ============ МОДАЛКА ============
-const authModal = document.getElementById("authModal");
-const openAuthBtn = document.getElementById("openAuthBtn");
-const startPlayBtn = document.getElementById("startPlayBtn");
-const closeAuthBtn = document.getElementById("closeAuthBtn");
+from flask import Flask, request, jsonify, render_template, redirect
+import sqlite3
+import hashlib
+import secrets
+import os
+import pathlib
 
-function openModal() { if (authModal) authModal.classList.add("active"); }
-function closeModal() { if (authModal) authModal.classList.remove("active"); }
+# ============ ПУТИ ============
+BASE_DIR = pathlib.Path(__file__).parent
+DB = BASE_DIR / "sugrob.db"
 
-if (openAuthBtn) openAuthBtn.addEventListener("click", openModal);
-if (startPlayBtn) startPlayBtn.addEventListener("click", openModal);
-if (closeAuthBtn) closeAuthBtn.addEventListener("click", closeModal);
+app = Flask(__name__)
 
-if (authModal) {
-  authModal.addEventListener("click", (e) => {
-    if (e.target === authModal) closeModal();
-  });
-}
+# ============ БАЗА ============
+def init_db():
+    con = sqlite3.connect(DB)
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            nickname TEXT,
+            about TEXT,
+            avatar TEXT,
+            role TEXT DEFAULT 'Новичок',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    con.commit()
+    con.close()
 
-document.querySelectorAll(".tab").forEach(tab => {
-  tab.addEventListener("click", () => {
-    const target = tab.dataset.tab;
-    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-    document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
-    tab.classList.add("active");
-    document.getElementById(target + "Form").classList.add("active");
-  });
-});
+def db():
+    con = sqlite3.connect(DB)
+    con.row_factory = sqlite3.Row
+    return con
 
-function togglePass(btn) {
-  const input = btn.parentElement.querySelector("input");
-  input.type = input.type === "password" ? "text" : "password";
-}
+def hash_pw(pw):
+    return hashlib.sha256(pw.encode()).hexdigest()
 
-function copyIP() {
-  navigator.clipboard.writeText("sugrob.squad");
-  alert("IP скопирован: sugrob.squad");
-}
+# ============ СЕССИИ ============
+SESSIONS = {}
 
-// ============ РЕГИСТРАЦИЯ ============
-const registerForm = document.getElementById("registerForm");
-if (registerForm) {
-  registerForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const err = document.getElementById("registerError");
-    err.textContent = "";
-    const res = await fetch("/api/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username: registerForm.username.value,
-        password: registerForm.password.value,
-      }),
-    });
-    const json = await res.json();
-    if (!res.ok) return (err.textContent = json.error);
-    window.location.href = "/profile";
-  });
-}
+def make_token(uid):
+    token = secrets.token_urlsafe(32)
+    SESSIONS[token] = uid
+    return token
 
-// ============ ВХОД ============
-const loginForm = document.getElementById("loginForm");
-if (loginForm) {
-  loginForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const err = document.getElementById("loginError");
-    err.textContent = "";
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username: loginForm.username.value,
-        password: loginForm.password.value,
-      }),
-    });
-    const json = await res.json();
-    if (!res.ok) return (err.textContent = json.error);
-    window.location.href = "/profile";
-  });
-}
+def current_user():
+    token = request.cookies.get("token")
+    if not token or token not in SESSIONS:
+        return None
+    con = db()
+    user = con.execute("SELECT * FROM users WHERE id = ?", (SESSIONS[token],)).fetchone()
+    con.close()
+    return user
 
-// ============ ПРОФИЛЬ ============
-const profileCard = document.getElementById("profileCard");
-if (profileCard) {
-  let userData = null;
-  let editMode = false;
+# ============ СТРАНИЦЫ ============
+@app.route("/")
+def home():
+    return render_template("index.html", user=current_user())
 
-  async function loadProfile() {
-    const res = await fetch("/api/profile");
-    if (!res.ok) return (window.location.href = "/");
-    const data = await res.json();
-    userData = data.user;
-    renderProfile();
-  }
+@app.route("/profile")
+def profile_page():
+    if not current_user():
+        return redirect("/")
+    return render_template("profile.html")
 
-  function renderProfile() {
-    const u = userData;
-    if (editMode) {
-      profileCard.innerHTML = `
-        <h1 class="profile-name">Редактирование</h1>
-        <div style="margin-top:20px">
-          <input id="nickname" placeholder="Никнейм" value="${escapeHtml(u.nickname)}"
-            style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;margin-bottom:12px">
-          <input id="avatar" placeholder="Ссылка на аватар" value="${escapeHtml(u.avatar)}"
-            style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;margin-bottom:12px">
-          <textarea id="about" placeholder="О себе" rows="4"
-            style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;margin-bottom:12px">${escapeHtml(u.about)}</textarea>
-          <div class="btn-row-left">
-            <button class="btn primary" onclick="saveProfile()">Сохранить</button>
-            <button class="btn" onclick="cancelEdit()">Отмена</button>
-          </div>
-        </div>
-      `;
-    } else {
-      profileCard.innerHTML = `
-        <div class="avatar">${u.avatar ? `<img src="${escapeHtml(u.avatar)}" alt="">` : "🎮"}</div>
-        <h1 class="profile-name">${escapeHtml(u.nickname)}</h1>
-        <p class="profile-handle">@${escapeHtml(u.username)}</p>
-        <span class="role">${escapeHtml(u.role)}</span>
-        <p class="profile-about">${escapeHtml(u.about) || "Пока нет описания..."}</p>
-        <p class="profile-meta">
-          В скваде с: ${new Date(u.created_at).toLocaleDateString("ru")}
-        </p>
-        <div class="btn-row-left">
-          <button class="btn primary" onclick="startEdit()">Редактировать</button>
-        </div>
-      `;
-    }
-  }
+# ============ API ============
+@app.route("/api/register", methods=["POST"])
+def api_register():
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip()
+    password = data.get("password") or ""
 
-  window.startEdit = () => { editMode = true; renderProfile(); };
-  window.cancelEdit = () => { editMode = false; renderProfile(); };
+    if not username or not password:
+        return jsonify({"error": "Заполни все поля"}), 400
+    if len(password) < 6:
+        return jsonify({"error": "Пароль минимум 6 символов"}), 400
 
-  window.saveProfile = async () => {
-    const data = {
-      nickname: document.getElementById("nickname").value,
-      avatar: document.getElementById("avatar").value,
-      about: document.getElementById("about").value,
-    };
-    const res = await fetch("/api/profile", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      userData = { ...userData, ...data };
-      editMode = false;
-      renderProfile();
-    }
-  };
+    con = db()
+    exists = con.execute(
+        "SELECT id FROM users WHERE username = ?", (username,)
+    ).fetchone()
+    if exists:
+        con.close()
+        return jsonify({"error": "Такой ник уже занят"}), 400
 
-  loadProfile();
-}
+    cur = con.execute(
+        "INSERT INTO users (username, password, nickname) VALUES (?, ?, ?)",
+        (username, hash_pw(password), username),
+    )
+    con.commit()
+    uid = cur.lastrowid
+    con.close()
 
-// ============ ВЫХОД ============
-const logoutBtn = document.getElementById("logoutBtn");
-if (logoutBtn) {
-  logoutBtn.addEventListener("click", async () => {
-    await fetch("/api/logout", { method: "POST" });
-    window.location.href = "/";
-  });
-}
+    token = make_token(uid)
+    res = jsonify({"success": True})
+    res.set_cookie("token", token, httponly=True, samesite="Lax", max_age=60 * 60 * 24 * 7)
+    return res
 
-// ============ УТИЛИТА ============
-function escapeHtml(str) {
-  if (!str) return "";
-  return String(str)
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
+@app.route("/api/login", methods=["POST"])
+def api_login():
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip()
+    password = data.get("password") or ""
+
+    con = db()
+    user = con.execute(
+        "SELECT * FROM users WHERE username = ?", (username,)
+    ).fetchone()
+    con.close()
+
+    if not user or user["password"] != hash_pw(password):
+        return jsonify({"error": "Неверный ник или пароль"}), 401
+
+    token = make_token(user["id"])
+    res = jsonify({"success": True})
+    res.set_cookie("token", token, httponly=True, samesite="Lax", max_age=60 * 60 * 24 * 7)
+    return res
+
+@app.route("/api/logout", methods=["POST"])
+def api_logout():
+    token = request.cookies.get("token")
+    SESSIONS.pop(token, None)
+    res = jsonify({"success": True})
+    res.set_cookie("token", "", max_age=0)
+    return res
+
+@app.route("/api/profile", methods=["GET"])
+def api_get_profile():
+    u = current_user()
+    if not u:
+        return jsonify({"error": "Не авторизован"}), 401
+    return jsonify({
+        "user": {
+            "id": u["id"],
+            "username": u["username"],
+            "nickname": u["nickname"] or u["username"],
+            "about": u["about"] or "",
+            "avatar": u["avatar"] or "",
+            "role": u["role"],
+            "created_at": u["created_at"],
+        }
+    })
+
+@app.route("/api/profile", methods=["PUT"])
+def api_update_profile():
+    u = current_user()
+    if not u:
+        return jsonify({"error": "Не авторизован"}), 401
+
+    data = request.get_json() or {}
+    nickname = data.get("nickname", "")
+    about = data.get("about", "")
+    avatar = data.get("avatar", "")
+
+    con = db()
+    con.execute(
+        "UPDATE users SET nickname = ?, about = ?, avatar = ? WHERE id = ?",
+        (nickname, about, avatar, u["id"]),
+    )
+    con.commit()
+    con.close()
+    return jsonify({"success": True})
+
+# ============ ЗАПУСК ============
+init_db()
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
