@@ -24,10 +24,18 @@
   </aside>
 
   <header class="topbar">
-    <button class="burger">☰</button>
-    <a href="/" class="logo">❄️ SUGROB SQUAD</a>
+    <button class="burger"><i data-lucide="menu"></i></button>
+    <a href="/" class="logo">SUGROB SQUAD</a>
     <div class="topbar-right">
-      <button id="logoutBtn" class="nav-btn">Выйти</button>
+      <button class="icon-btn" id="openNotifications" title="Уведомления">
+        <i data-lucide="bell"></i>
+        <span class="notif-badge" id="notifBadge" style="display:none">0</span>
+      </button>
+      <a href="/profile" class="user-chip">
+        <span class="user-chip-avatar">
+          <i data-lucide="user"></i>
+        </span>
+      </a>
     </div>
   </header>
 
