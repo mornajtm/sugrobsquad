@@ -176,3 +176,16 @@ function togglePass(btn) {
   const input = btn.parentElement.querySelector("input");
   input.type = input.type === "password" ? "text" : "password";
 }
+// ============ АНИМАЦИЯ ПОЯВЛЕНИЯ ПРИ СКРОЛЛЕ ============
+const joinSection = document.getElementById("joinSection");
+if (joinSection) {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add("visible");
+      }
+    });
+  }, { threshold: 0.15 });
+
+  observer.observe(joinSection);
+}
