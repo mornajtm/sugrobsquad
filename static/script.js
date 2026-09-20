@@ -130,9 +130,19 @@ document.addEventListener("DOMContentLoaded", () => {
             <input id="nickname" value="${escapeHtml(u.nickname)}"
               style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;margin-bottom:14px">
 
-            <label style="font-weight:600;font-size:14px;display:block;margin-bottom:6px">Ссылка на аватар</label>
-            <input id="avatar" placeholder="https://..." value="${escapeHtml(u.avatar)}"
-              style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;margin-bottom:14px">
+            <label style="font-weight:600;font-size:14px;display:block;margin-bottom:6px">Аватар</label>
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+              <div class="avatar" id="avatarPreview" style="margin:0">
+                ${u.avatar ? `<img src="${escapeHtml(u.avatar)}" alt="">` : '<i data-lucide="user"></i>'}
+              </div>
+              <div>
+                <label for="avatarFile" class="btn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+                  <i data-lucide="upload"></i> Выбрать файл
+                </label>
+                <input type="file" id="avatarFile" accept="image/*" style="display:none">
+                <p class="muted" style="font-size:12px;margin-top:6px">PNG, JPG, GIF, WEBP. До 5 МБ.</p>
+              </div>
+            </div>
 
             <label style="font-weight:600;font-size:14px;display:block;margin-bottom:6px">О себе</label>
             <textarea id="about" rows="4" placeholder="Расскажи о себе..."
@@ -144,13 +154,40 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
           </div>
         `;
+
+        if (window.lucide) lucide.createIcons();
+
+        const fileInput = document.getElementById("avatarFile");
+        const preview = document.getElementById("avatarPreview");
+        fileInput.addEventListener("change", async () => {
+          const file = fileInput.files[0];
+          if (!file) return;
+          if (file.size > 5 * 1024 * 1024) {
+            alert("Файл больше 5 МБ");
+            return;
+          }
+          const formData = new FormData();
+          formData.append("file", file);
+          const res = await fetch("/api/upload-avatar", {
+            method: "POST",
+            body: formData,
+          });
+          const json = await res.json();
+          if (!res.ok) {
+            alert(json.error || "Ошибка загрузки");
+            return;
+          }
+          userData.avatar = json.url;
+          preview.innerHTML = `<img src="${json.url}" alt="">`;
+        });
+
         document.getElementById("saveProfileBtn").addEventListener("click", saveProfile);
         document.getElementById("cancelEditBtn").addEventListener("click", () => {
           editMode = false; renderProfile();
         });
       } else {
         profileCard.innerHTML = `
-          <div class="avatar">${u.avatar ? `<img src="${escapeHtml(u.avatar)}" alt="">` : "🎮"}</div>
+          <div class="avatar">${u.avatar ? `<img src="${escapeHtml(u.avatar)}" alt="">` : '<i data-lucide="user"></i>'}</div>
           <h1 class="profile-name">${escapeHtml(u.nickname)}</h1>
           <p class="profile-handle">@${escapeHtml(u.username)}</p>
           <span class="role">${escapeHtml(u.role)}</span>
@@ -160,6 +197,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <button class="btn primary" id="editProfileBtn">Редактировать</button>
           </div>
         `;
+        if (window.lucide) lucide.createIcons();
         document.getElementById("editProfileBtn").addEventListener("click", () => {
           editMode = true; renderProfile();
         });
@@ -169,8 +207,8 @@ document.addEventListener("DOMContentLoaded", () => {
     async function saveProfile() {
       const data = {
         nickname: document.getElementById("nickname").value,
-        avatar: document.getElementById("avatar").value,
         about: document.getElementById("about").value,
+        avatar: userData.avatar || "",
       };
       const res = await fetch("/api/profile", {
         method: "PUT",
@@ -178,7 +216,7 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify(data),
       });
       if (res.ok) {
-        userData = { ...userData, ...data };
+        userData = { ...userData, nickname: data.nickname, about: data.about };
         editMode = false;
         renderProfile();
       }
@@ -276,7 +314,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <tr>
           <td>
             <div class="seller-cell">
-              <div class="seller-avatar">${p.avatar ? `<img src="${escapeHtml(p.avatar)}">` : "🎮"}</div>
+              <div class="seller-avatar">${p.avatar ? `<img src="${escapeHtml(p.avatar)}">` : '<i data-lucide="user"></i>'}</div>
               <div>
                 <div class="seller-name">${escapeHtml(p.nickname || p.username)}</div>
                 <div class="seller-role">Продавец</div>
