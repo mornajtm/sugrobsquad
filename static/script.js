@@ -332,9 +332,39 @@ document.addEventListener("DOMContentLoaded", () => {
     const createProductModal = document.getElementById("createProductModal");
     const createProductForm = document.getElementById("createProductForm");
     const openCreateProduct = document.getElementById("openCreateProduct");
+    const noShopsBlock = document.getElementById("noShopsBlock");
+    const shopSelect = document.getElementById("shopSelect");
+
+    async function loadMyShops() {
+      try {
+        const res = await fetch("/api/my-shops");
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.shops || [];
+      } catch {
+        return [];
+      }
+    }
 
     if (openCreateProduct) {
-      openCreateProduct.addEventListener("click", () => createProductModal.classList.add("active"));
+      openCreateProduct.addEventListener("click", async () => {
+        const shops = await loadMyShops();
+
+        if (!shops.length) {
+          if (noShopsBlock) noShopsBlock.style.display = "block";
+          if (createProductForm) createProductForm.style.display = "none";
+        } else {
+          if (noShopsBlock) noShopsBlock.style.display = "none";
+          if (createProductForm) createProductForm.style.display = "block";
+          if (shopSelect) {
+            shopSelect.innerHTML = `<option value="">Выбери магазин</option>` +
+              shops.map(s => `<option value="${escapeHtml(s.title)}">${escapeHtml(s.title)} (${escapeHtml(s.map || "")} X:${s.x} Z:${s.z})</option>`).join("");
+          }
+        }
+
+        if (createProductModal) createProductModal.classList.add("active");
+        if (window.lucide) lucide.createIcons();
+      });
     }
 
     document.querySelectorAll("[data-close]").forEach(btn => {
@@ -348,10 +378,6 @@ document.addEventListener("DOMContentLoaded", () => {
       tab.addEventListener("click", () => {
         document.querySelectorAll(".switch-tab").forEach(t => t.classList.remove("active"));
         tab.classList.add("active");
-        const label = document.getElementById("shopLabel");
-        if (label) label.innerHTML = tab.dataset.type === "rent"
-          ? 'Аренда <span class="req">*</span>'
-          : 'Магазин <span class="req">*</span>';
       });
     });
 
