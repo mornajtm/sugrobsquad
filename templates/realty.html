@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Недвижимость — SUGROB SQUAD</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <!-- ============ БОКОВОЕ МЕНЮ ============ -->
+  <div class="side-menu-overlay" id="sideMenuOverlay"></div>
+  <aside class="side-menu" id="sideMenu">
+    <div class="side-menu-head">
+      <span>Меню</span>
+      <button id="closeSideMenu">✕</button>
+    </div>
+    <nav class="side-menu-nav">
+      <a href="/">🏠 Главная</a>
+      {% if user %}<a href="/profile">👤 Профиль</a>{% endif %}
+      <a href="/trade">🛒 Торговля</a>
+      <a href="/realty">🏠 Недвижимость</a>
+    </nav>
+  </aside>
+
+  <!-- ============ ТОПБАР ============ -->
+  <header class="topbar">
+    <button class="burger">☰</button>
+    <a href="/" class="logo">❄️ SUGROB SQUAD</a>
+    <div class="topbar-right">
+      {% if user %}
+        <a href="/profile" class="nav-btn">👤 {{ user.nickname or user.username }}</a>
+      {% else %}
+        <a href="/" class="nav-btn">👤 Войти</a>
+      {% endif %}
+    </div>
+  </header>
+
+  <!-- ============ КОНТЕНТ ============ -->
+  <main class="container">
+
+    <div class="page-head">
+      <h1>Аренда</h1>
+      <div class="page-actions">
+        {% if user %}
+          <button class="icon-btn" id="openCreatePlot" title="Создать участок">+</button>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="tabs-row">
+      <button class="tabline active">Палатки</button>
+      <button class="tabline">Дома</button>
+      <button class="tabline">Склады</button>
+    </div>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Владелец</th>
+          <th>Название</th>
+          <th>Карта</th>
+          <th>Координаты</th>
+          <th>Цена</th>
+          <th>Статус</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="plotsBody">
+        <tr><td colspan="7" class="empty-row">Загрузка...</td></tr>
+      </tbody>
+    </table>
+
+  </main>
+
+  <!-- ============ МОДАЛКА: создать участок ============ -->
+  <div class="modal-overlay" id="createPlotModal">
+    <div class="modal">
+      <button class="modal-close" data-close="createPlotModal">✕</button>
+      <h2 class="modal-title">Создать Участок</h2>
+
+      <form id="createPlotForm" class="modal-form">
+        <label>Карта <span class="req">*</span></label>
+        <select name="map">
+          <option value="">Карта</option>
+          <option value="Overworld">Overworld</option>
+          <option value="Nether">Nether</option>
+          <option value="End">End</option>
+        </select>
+
+        <label>Название <span class="req">*</span></label>
+        <input name="title" placeholder="Название" required>
+
+        <label>X <span class="req">*</span></label>
+        <input type="number" name="x" value="0" required>
+
+        <label>Z <span class="req">*</span></label>
+        <input type="number" name="z" value="0" required>
+
+        <label>Цена <span class="req">*</span></label>
+        <input type="number" name="price" value="1" min="1" required>
+
+        <p class="err" id="createPlotError"></p>
+        <button type="submit" class="btn full">Подтвердить</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>
