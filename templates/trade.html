@@ -24,13 +24,27 @@
   </aside>
 
   <header class="topbar">
-    <button class="burger">☰</button>
-    <a href="/" class="logo">❄️ SUGROB SQUAD</a>
+    <button class="burger"><i data-lucide="menu"></i></button>
+    <a href="/" class="logo">SUGROB SQUAD</a>
     <div class="topbar-right">
       {% if user %}
-        <a href="/profile" class="nav-btn">👤 {{ user.nickname or user.username }}</a>
+        <button class="icon-btn" id="openNotifications" title="Уведомления">
+          <i data-lucide="bell"></i>
+          <span class="notif-badge" id="notifBadge" style="display:none">0</span>
+        </button>
+        <a href="/profile" class="user-chip">
+          <span class="user-chip-avatar">
+            {% if user.avatar %}
+              <img src="{{ user.avatar }}" alt="">
+            {% else %}
+              <i data-lucide="user"></i>
+            {% endif %}
+          </span>
+        </a>
       {% else %}
-        <a href="/" class="nav-btn">👤 Войти</a>
+        <a href="/" class="nav-btn">
+          <i data-lucide="log-in"></i> Войти
+        </a>
       {% endif %}
     </div>
   </header>
