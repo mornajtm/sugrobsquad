@@ -200,3 +200,15 @@ body {
   .modal { padding: 24px 22px 28px; }
   .topbar { padding: 12px 16px; }
 }
+
+/* ============ АНИМАЦИЯ ПОЯВЛЕНИЯ БЛОКА ============ */
+#joinSection {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+#joinSection.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
