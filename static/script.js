@@ -1,11 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
 
-  // ============ ИКОНКИ LUCIDE ============
-  if (window.lucide) {
-    lucide.createIcons();
-  }
+  if (window.lucide) lucide.createIcons();
 
-  // ============ УТИЛИТА ============
   function escapeHtml(str) {
     if (!str) return "";
     return String(str)
@@ -38,7 +34,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ============ ВКЛАДКИ ВХОД / РЕГИСТРАЦИЯ ============
   document.querySelectorAll(".tab").forEach(tab => {
     tab.addEventListener("click", () => {
       const target = tab.dataset.tab;
@@ -50,7 +45,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // ============ ПОКАЗ ПАРОЛЯ ============
   window.togglePass = function (btn) {
     const input = btn.parentElement.querySelector("input");
     input.type = input.type === "password" ? "text" : "password";
@@ -168,15 +162,9 @@ document.addEventListener("DOMContentLoaded", () => {
           }
           const formData = new FormData();
           formData.append("file", file);
-          const res = await fetch("/api/upload-avatar", {
-            method: "POST",
-            body: formData,
-          });
+          const res = await fetch("/api/upload-avatar", { method: "POST", body: formData });
           const json = await res.json();
-          if (!res.ok) {
-            alert(json.error || "Ошибка загрузки");
-            return;
-          }
+          if (!res.ok) { alert(json.error || "Ошибка загрузки"); return; }
           userData.avatar = json.url;
           preview.innerHTML = `<img src="${json.url}" alt="">`;
         });
@@ -287,21 +275,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderProducts() {
       let list = [...allProducts];
-
       if (currentFilter === "active") list = list.filter(p => p.status === "active");
-      if (currentFilter === "mine") list = list.filter(p => p.is_mine);
-
-      if (searchQuery.id)
-        list = list.filter(p => String(p.id).includes(searchQuery.id));
+      if (searchQuery.id) list = list.filter(p => String(p.id).includes(searchQuery.id));
       if (searchQuery.player)
-        list = list.filter(p =>
-          (p.nickname || p.username || "").toLowerCase().includes(searchQuery.player.toLowerCase())
-        );
+        list = list.filter(p => (p.nickname || p.username || "").toLowerCase().includes(searchQuery.player.toLowerCase()));
       if (searchQuery.item)
-        list = list.filter(p =>
-          (p.item || "").toLowerCase().includes(searchQuery.item.toLowerCase())
-        );
-
+        list = list.filter(p => (p.item || "").toLowerCase().includes(searchQuery.item.toLowerCase()));
       if (currentSort === "asc") list.sort((a, b) => a.price - b.price);
       if (currentSort === "desc") list.sort((a, b) => b.price - a.price);
 
@@ -355,9 +334,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const openCreateProduct = document.getElementById("openCreateProduct");
 
     if (openCreateProduct) {
-      openCreateProduct.addEventListener("click", () => {
-        createProductModal.classList.add("active");
-      });
+      openCreateProduct.addEventListener("click", () => createProductModal.classList.add("active"));
     }
 
     document.querySelectorAll("[data-close]").forEach(btn => {
@@ -372,7 +349,9 @@ document.addEventListener("DOMContentLoaded", () => {
         document.querySelectorAll(".switch-tab").forEach(t => t.classList.remove("active"));
         tab.classList.add("active");
         const label = document.getElementById("shopLabel");
-        if (label) label.textContent = tab.dataset.type === "rent" ? "Аренда *" : "Магазин *";
+        if (label) label.innerHTML = tab.dataset.type === "rent"
+          ? 'Аренда <span class="req">*</span>'
+          : 'Магазин <span class="req">*</span>';
       });
     });
 
@@ -433,7 +412,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loadProducts();
   }
 
-    // ============ НЕДВИЖИМОСТЬ ============
+  // ============ НЕДВИЖИМОСТЬ ============
   const plotsBody = document.getElementById("plotsBody");
   if (plotsBody) {
     let allPlots = [];
@@ -489,11 +468,9 @@ document.addEventListener("DOMContentLoaded", () => {
         document.querySelectorAll("[data-plot-type]").forEach(t => t.classList.remove("active"));
         tab.classList.add("active");
         const label = document.getElementById("mapLabel");
-        if (label) {
-          label.innerHTML = tab.dataset.plotType === "shop"
-            ? 'Магазин <span class="req">*</span>'
-            : 'Карта <span class="req">*</span>';
-        }
+        if (label) label.innerHTML = tab.dataset.plotType === "shop"
+          ? 'Магазин <span class="req">*</span>'
+          : 'Карта <span class="req">*</span>';
       });
     });
 
@@ -535,3 +512,5 @@ document.addEventListener("DOMContentLoaded", () => {
       alert("Уведомлений пока нет");
     });
   }
+
+});
