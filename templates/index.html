@@ -31,9 +31,8 @@
           {% if user %}
             <a href="/profile" class="btn primary big">Мой профиль</a>
           {% else %}
-            <button class="btn primary big" id="startPlayBtn">Начать играть</button>
+            <button class="btn primary big" id="joinSquadBtn">🤝 Вступить в сквад</button>
           {% endif %}
-          <button class="btn big" onclick="copyIP()">📋 sugrob.squad</button>
         </div>
       </div>
       <div class="hero-image">
@@ -61,10 +60,14 @@
       целую вселенную со своими правилами, ценностями и легендами.</p>
     </section>
 
-    <section class="card cta">
-      <h2>❤️‍🔥 Присоединяйся!</h2>
-      <p>Смело заходи в наш Discord — там намного больше информации.</p>
-      <a href="https://discord.gg/5aYZZbJu3" target="_blank" class="btn primary big">🚀 Discord сквада</a>
+    <!-- Блок, к которому будем скроллить -->
+    <section class="card cta" id="joinSection">
+      <h2>❤️‍🔥 Присоединяйся к нам!</h2>
+      <p>Смело заходи в наш Discord — там намного больше информации.
+      Мы уже ждём тебя, чтобы вместе отправиться в новое игровое приключение!</p>
+      <a href="https://discord.gg/5aYZZbJu3" target="_blank" class="btn primary big">
+        🚀 Discord сквада
+      </a>
     </section>
   </main>
 
@@ -79,7 +82,6 @@
         <button class="tab" data-tab="register">Зарегистрироваться</button>
       </div>
 
-      <!-- ВХОД -->
       <form id="loginForm" class="tab-content active">
         <label>Ник <span class="req">*</span></label>
         <input type="text" name="username" placeholder="Zakatis" required>
@@ -94,7 +96,6 @@
         <button type="submit" class="btn primary full">Подтвердить</button>
       </form>
 
-      <!-- РЕГИСТРАЦИЯ (без email) -->
       <form id="registerForm" class="tab-content">
         <label>Ник <span class="req">*</span></label>
         <input type="text" name="username" placeholder="Zakatis" required>
