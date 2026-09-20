@@ -9,7 +9,6 @@
 </head>
 <body>
 
-  <!-- Боковое меню -->
   <div class="side-menu-overlay" id="sideMenuOverlay"></div>
   <aside class="side-menu" id="sideMenu">
     <div class="side-menu-head">
@@ -24,14 +23,23 @@
     </nav>
   </aside>
 
-  <!-- Топбар -->
   <header class="topbar">
     <button class="burger"><i data-lucide="menu"></i></button>
     <a href="/" class="logo">SUGROB SQUAD</a>
     <div class="topbar-right">
       {% if user %}
-        <a href="/profile" class="nav-btn">
-          <i data-lucide="user"></i> {{ user.nickname or user.username }}
+        <button class="icon-btn" id="openNotifications" title="Уведомления">
+          <i data-lucide="bell"></i>
+          <span class="notif-badge" id="notifBadge" style="display:none">0</span>
+        </button>
+        <a href="/profile" class="user-chip">
+          <span class="user-chip-avatar">
+            {% if user.avatar %}
+              <img src="{{ user.avatar }}" alt="">
+            {% else %}
+              <i data-lucide="user"></i>
+            {% endif %}
+          </span>
         </a>
       {% else %}
         <button class="nav-btn" id="openAuthBtn">
@@ -41,7 +49,6 @@
     </div>
   </header>
 
-  <!-- Контент -->
   <main class="container">
 
     <section class="hero">
@@ -99,7 +106,6 @@
 
   </main>
 
-  <!-- Модалка авторизации -->
   {% if not user %}
   <div class="modal-overlay" id="authModal">
     <div class="modal">
