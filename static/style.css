@@ -424,12 +424,15 @@ body {
 }
 /* ============ HERO ИЗОБРАЖЕНИЕ ============ */
 .hero-img {
-  width: 400px;
+  width: 280px;
   max-width: 100%;
   height: auto;
   display: block;
-  border-radius: 24px;
-  filter: drop-shadow(0 14px 44px rgba(0, 0, 0, 0.14));
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  filter: none;
 }
 
 @media (max-width: 720px) {
