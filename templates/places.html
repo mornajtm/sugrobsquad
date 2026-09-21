@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Общественные места — SUGROB SQUAD</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <div class="side-menu-overlay" id="sideMenuOverlay"></div>
+  <aside class="side-menu" id="sideMenu">
+    <div class="side-menu-head">
+      <span>Меню</span>
+      <button id="closeSideMenu">✕</button>
+    </div>
+    <nav class="side-menu-nav">
+      <a href="/"><i data-lucide="home"></i> Главная</a>
+      {% if user %}<a href="/profile"><i data-lucide="user"></i> Профиль</a>{% endif %}
+      <a href="/trade"><i data-lucide="shopping-bag"></i> Торговля</a>
+      <a href="/realty"><i data-lucide="store"></i> Недвижимость</a>
+      <a href="/places"><i data-lucide="map-pin"></i> Общественные места</a>
+    </nav>
+  </aside>
+
+  <header class="topbar">
+    <button class="burger"><i data-lucide="menu"></i></button>
+    <a href="/" class="logo">SUGROB SQUAD</a>
+    <div class="topbar-right">
+      {% if user %}
+        <button class="icon-btn" id="openNotifications" title="Уведомления">
+          <i data-lucide="bell"></i>
+        </button>
+        <a href="/profile" class="user-chip">
+          <span class="user-chip-avatar">
+            {% if user.avatar %}
+              <img src="{{ user.avatar }}" alt="">
+            {% else %}
+              <i data-lucide="user"></i>
+            {% endif %}
+          </span>
+        </a>
+      {% else %}
+        <a href="/" class="nav-btn"><i data-lucide="log-in"></i> Войти</a>
+      {% endif %}
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="page-head">
+      <h1>Общественные места</h1>
+      <div class="page-actions">
+        {% if user %}
+          <button class="icon-btn" id="openCreatePlace" title="Создать место">
+            <i data-lucide="plus"></i>
+          </button>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="tabs-row">
+      <button class="tabline active" data-filter="active">Активные</button>
+      <button class="tabline" data-filter="mine">Мои</button>
+      <button class="tabline" data-filter="all">Все</button>
+    </div>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Ответственный</th>
+          <th>Название</th>
+          <th>X</th>
+          <th>Z</th>
+          <th>Создано</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="placesBody">
+        <tr><td colspan="6" class="empty-row">Загрузка...</td></tr>
+      </tbody>
+    </table>
+  </main>
+
+  <div class="modal-overlay" id="createPlaceModal">
+    <div class="modal">
+      <button class="modal-close" data-close="createPlaceModal">✕</button>
+      <h2 class="modal-title">Создать Общ. место</h2>
+
+      <form id="createPlaceForm" class="modal-form">
+        <label>Название <span class="req">*</span></label>
+        <input name="title" placeholder="Банк на спавне" required>
+
+        <label>X <span class="req">*</span></label>
+        <input type="number" name="x" value="0" required>
+
+        <label>Z <span class="req">*</span></label>
+        <input type="number" name="z" value="0" required>
+
+        <p class="err" id="createPlaceError"></p>
+        <button type="submit" class="btn full">Подтвердить</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>
