@@ -42,6 +42,23 @@ def allowed_file(name):
 app = Flask(__name__)
 
 
+# ============ АДМИН ============
+ADMIN_USERNAME = "Vladimir"
+ADMIN_PASSWORD = "Nik09112013"
+
+
+def ensure_admin(cur):
+    """Создаёт админ-аккаунт, если его ещё нет."""
+    cur.execute("SELECT id FROM users WHERE username = %s", (ADMIN_USERNAME,))
+    row = cur.fetchone()
+    if row:
+        return
+    cur.execute("""
+        INSERT INTO users (username, password, nickname, role, balance)
+        VALUES (%s, %s, %s, %s, %s)
+    """, (ADMIN_USERNAME, hash_pw(ADMIN_PASSWORD), ADMIN_USERNAME, "Администратор", 999999))
+
+
 def init_db():
     con = psycopg2.connect(DATABASE_URL)
     cur = con.cursor()
@@ -108,7 +125,7 @@ def init_db():
         )
     """)
 
-    # ---- PLOTS (участки + магазины) ----
+    # ---- PLOTS ----
     cur.execute("""
         CREATE TABLE IF NOT EXISTS plots (
             id SERIAL PRIMARY KEY,
@@ -128,7 +145,7 @@ def init_db():
     if "kind" not in cols:
         cur.execute("ALTER TABLE plots ADD COLUMN kind TEXT DEFAULT 'rent'")
 
-    # ---- PLACES (общественные места) ----
+    # ---- PLACES ----
     cur.execute("""
         CREATE TABLE IF NOT EXISTS places (
             id SERIAL PRIMARY KEY,
@@ -140,13 +157,16 @@ def init_db():
         )
     """)
 
-    # Удаляем товары, магазин которых уже не существует
+    # Чистка товаров с несуществующим магазином
     cur.execute("""
         DELETE FROM products
         WHERE shop IS NULL OR shop = '' OR shop NOT IN (
             SELECT title FROM plots WHERE kind = 'shop'
         )
     """)
+
+    # Создаём админа
+    ensure_admin(cur)
 
     con.commit()
     cur.close()
@@ -476,7 +496,6 @@ def api_buy_product(pid):
         con.close()
         return jsonify({"error": "Недостаточно товара"}), 400
 
-    # Общая сумма = цена * кол-во упаковок * кол-во в упаковке
     total = product["price"] * qty * (product["per_slot"] or 1)
 
     balance = buyer.get("balance", 0)
@@ -485,15 +504,12 @@ def api_buy_product(pid):
         con.close()
         return jsonify({"error": "Недостаточно АР"}), 400
 
-    # Обновляем балансы
     cur.execute("UPDATE users SET balance = balance - %s WHERE id = %s", (total, buyer["id"]))
     cur.execute("UPDATE users SET balance = balance + %s WHERE id = %s", (total, product["seller_id"]))
 
-    # Уменьшаем количество товара
     cur.execute("UPDATE products SET quantity = quantity - %s, updated_at = NOW() WHERE id = %s", (qty, pid))
     cur.execute("UPDATE products SET status = 'sold' WHERE id = %s AND quantity <= 0", (pid,))
 
-    # Записываем покупку
     cur.execute("""
         INSERT INTO purchases (product_id, seller_id, buyer_id, item, quantity, per_slot, measure, total, shop, map)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -669,8 +685,6 @@ def api_health():
         "db_url_present": bool(DATABASE_URL),
         "db_url_scheme": DATABASE_URL.split("://")[0] if DATABASE_URL else None,
         "db_url_length": len(DATABASE_URL) if DATABASE_URL else 0,
-        "db_url_has_connection_limit": "connection_limit" in (DATABASE_URL or ""),
-        "db_url_has_sslmode": "sslmode" in (DATABASE_URL or ""),
     }
     try:
         con = db()
