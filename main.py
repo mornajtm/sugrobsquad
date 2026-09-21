@@ -315,33 +315,48 @@ def auth_discord():
 
 @app.route("/auth/discord/callback")
 def auth_discord_callback():
-    import traceback
-    from flask import request
+    import traceback, urllib.request, urllib.parse
 
-    # Шаг 1: смотрим, что прислал Discord
     args = dict(request.args)
     print("DISCORD CALLBACK ARGS:", args)
 
-    # Если Discord вернул ошибку — показываем её
-    if "error" in args:
-        err = args.get("error")
-        desc = args.get("error_description", "")
-        return f"<pre>Discord вернул ошибку:\n  error = {err}\n  description = {desc}\n\nПолные параметры:\n{args}</pre>", 400
-
-    # Если кода нет вообще — показываем что пришло
     code = args.get("code")
     if not code:
-        return f"<pre>Discord не вернул code.\n\nЧто пришло:\n{args}\n\nПроверь:\n1. В Discord Developer Portal → OAuth2 → Redirects есть https://sugrobsquad.relaxdev.ru/auth/discord/callback\n2. В RelaxDev переменная DISCORD_REDIRECT — точно такая же\n3. На странице Discord ты нажал 'Авторизовать', а не 'Отмена'</pre>", 400
-
-    if not discord_client:
-        return "Discord OAuth не настроен. Проверь переменные DISCORD_CLIENT_ID и DISCORD_CLIENT_SECRET.", 500
+        return f"<pre>Discord не вернул code.\nПришло: {args}</pre>", 400
 
     try:
-        # Шаг 2: обмен кода на access-токен
-        access = discord_client.exchange_code(code)
+        # Ручной обмен кода на токен — с таймаутом 20 секунд
+        payload = urllib.parse.urlencode({
+            "client_id": DISCORD_CLIENT_ID,
+            "client_secret": DISCORD_CLIENT_SECRET,
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": DISCORD_REDIRECT,
+        }).encode()
 
-        # Шаг 3: получаем профиль Discord
-        identify = access.fetch_identify()
+        req = urllib.request.Request(
+            "https://discord.com/api/v10/oauth2/token",
+            data=payload,
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            method="POST",
+        )
+        print("Начинаем обмен кода...")
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            token_data = json_lib.loads(resp.read().decode())
+        print("Токен получен:", list(token_data.keys()))
+
+        access_token = token_data["access_token"]
+
+        # Получаем профиль Discord
+        req2 = urllib.request.Request(
+            "https://discord.com/api/v10/users/@me",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        with urllib.request.urlopen(req2, timeout=20) as resp:
+            identify = json_lib.loads(resp.read().decode())
+
         discord_id = str(identify["id"])
         discord_username = identify.get("username", "player")
         discord_avatar = identify.get("avatar")
@@ -351,7 +366,7 @@ def auth_discord_callback():
         else:
             avatar_url = "https://cdn.discordapp.com/embed/avatars/0.png"
 
-        # Шаг 4: создаём/находим пользователя в БД
+        # Сохраняем/обновляем пользователя
         con = db()
         cur = con.cursor()
         cur.execute("SELECT * FROM users WHERE discord_id = %s", (discord_id,))
@@ -362,7 +377,6 @@ def auth_discord_callback():
             cur.execute("SELECT id FROM users WHERE username = %s", (username,))
             if cur.fetchone():
                 username = f"dc_{discord_username}_{discord_id[:4]}"
-
             cur.execute("""
                 INSERT INTO users (username, password, nickname, avatar, role, balance, discord_id)
                 VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
@@ -376,18 +390,30 @@ def auth_discord_callback():
         cur.close()
         con.close()
 
-        # Шаг 5: пытаемся добавить на сервер и выдать роль
+        # Добавляем на сервер и выдаём роль (опционально)
         try:
-            access.add_to_guild(DISCORD_GUILD_ID)
-        except Exception as e:
-            print("Guild join error:", e)
+            put_req = urllib.request.Request(
+                f"https://discord.com/api/v10/guilds/{DISCORD_GUILD_ID}/members/{discord_id}",
+                data=json_lib.dumps({"access_token": access_token}).encode(),
+                headers={
+                    "Authorization": f"Bot {DISCORD_BOT_TOKEN}",
+                    "Content-Type": "application/json",
+                },
+                method="PUT",
+            )
+            urllib.request.urlopen(put_req, timeout=15)
+            print("Игрок добавлен на сервер")
 
-        try:
-            access.add_role(DISCORD_GUILD_ID, DISCORD_ROLE_ID)
+            role_req = urllib.request.Request(
+                f"https://discord.com/api/v10/guilds/{DISCORD_GUILD_ID}/members/{discord_id}/roles/{DISCORD_ROLE_ID}",
+                headers={"Authorization": f"Bot {DISCORD_BOT_TOKEN}"},
+                method="PUT",
+            )
+            urllib.request.urlopen(role_req, timeout=15)
+            print("Роль выдана")
         except Exception as e:
-            print("Role add error:", e)
+            print("Guild/Role error:", e)
 
-        # Шаг 6: создаём сессию
         token = make_token(uid)
         res = redirect("/profile")
         res.set_cookie("token", token, httponly=True, samesite="Lax", max_age=60 * 60 * 24 * 7)
@@ -396,8 +422,7 @@ def auth_discord_callback():
     except Exception as e:
         tb = traceback.format_exc()
         print("Discord auth error:", tb)
-        return f"<pre>Ошибка при обмене кода:\n\nТип: {type(e).__name__}\nТекст: {e}\n\nПолный traceback:\n\n{tb}</pre>", 500
-
+        return f"<pre>Ошибка: {type(e).__name__}: {e}\n\n{tb}</pre>", 500
 
 # ============ АВТОРИЗАЦИЯ ============
 @app.route("/api/register", methods=["POST"])
