@@ -5,8 +5,11 @@ import hashlib
 import secrets
 import os
 import pathlib
+import urllib.request
+import json as json_lib
 from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
 from werkzeug.utils import secure_filename
+import discordoauth2
 
 BASE_DIR = pathlib.Path(__file__).parent
 
@@ -41,29 +44,72 @@ def allowed_file(name):
 
 app = Flask(__name__)
 
-# ============ АДМИН ============
+# ============ АДМИНЫ ============
 ADMIN_USERNAME = "Vladimir"
 ADMIN_PASSWORD = "Nik09112013"
+ADMIN2_USERNAME = "Wito"
+ADMIN2_PASSWORD = "kvadrober"
 
 
 def hash_pw(pw):
     return hashlib.sha256(pw.encode()).hexdigest()
 
 
+# ============ DISCORD OAUTH ============
+DISCORD_CLIENT_ID = int(os.environ.get("DISCORD_CLIENT_ID", "0") or 0)
+DISCORD_CLIENT_SECRET = os.environ.get("DISCORD_CLIENT_SECRET", "")
+DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
+DISCORD_GUILD_ID = int(os.environ.get("DISCORD_GUILD_ID", "0") or 0)
+DISCORD_ROLE_ID = int(os.environ.get("DISCORD_ROLE_ID", "0") or 0)
+DISCORD_REDIRECT = os.environ.get(
+    "DISCORD_REDIRECT",
+    "https://sugrobsquad.relaxdev.ru/auth/discord/callback"
+)
+
+discord_client = None
+if DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET:
+    try:
+        discord_client = discordoauth2.Client(
+            DISCORD_CLIENT_ID,
+            secret=DISCORD_CLIENT_SECRET,
+            redirect=DISCORD_REDIRECT,
+            bot_token=DISCORD_BOT_TOKEN or None,
+        )
+    except Exception as e:
+        print("Discord client init error:", e)
+
+
+# ============ DISCORD WEBHOOK ============
+DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
+
+
+def send_discord(text):
+    if not DISCORD_WEBHOOK_URL:
+        return
+    try:
+        data = json_lib.dumps({"content": text}).encode("utf-8")
+        req = urllib.request.Request(
+            DISCORD_WEBHOOK_URL,
+            data=data,
+            headers={"Content-Type": "application/json"},
+        )
+        urllib.request.urlopen(req, timeout=5)
+    except Exception as e:
+        print("Discord webhook error:", e)
+
+
+# ============ БАЗА ============
 def ensure_admin(cur):
     admins = [
-        ("Vladimir", "Nik09112013"),
-        ("Wito", "kvadrober"),
+        (ADMIN_USERNAME, ADMIN_PASSWORD),
+        (ADMIN2_USERNAME, ADMIN2_PASSWORD),
     ]
     for username, password in admins:
         cur.execute("SELECT id FROM users WHERE username = %s", (username,))
         row = cur.fetchone()
         if row:
-            # Если пользователь есть, но роль не Админ — обновим
-            cur.execute(
-                "UPDATE users SET role = 'Администратор' WHERE id = %s",
-                (row[0] if not isinstance(row, dict) else row["id"],)
-            )
+            uid = row["id"] if isinstance(row, dict) else row[0]
+            cur.execute("UPDATE users SET role = 'Администратор' WHERE id = %s", (uid,))
             continue
         cur.execute("""
             INSERT INTO users (username, password, nickname, role, balance)
@@ -75,7 +121,6 @@ def init_db():
     con = psycopg2.connect(DATABASE_URL)
     cur = con.cursor()
 
-    # ---- USERS ----
     cur.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
@@ -87,6 +132,7 @@ def init_db():
             role TEXT DEFAULT 'Новичок',
             balance INTEGER DEFAULT 1000,
             is_banned BOOLEAN DEFAULT FALSE,
+            discord_id TEXT DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -96,8 +142,9 @@ def init_db():
         cur.execute("ALTER TABLE users ADD COLUMN balance INTEGER DEFAULT 1000")
     if "is_banned" not in ucols:
         cur.execute("ALTER TABLE users ADD COLUMN is_banned BOOLEAN DEFAULT FALSE")
+    if "discord_id" not in ucols:
+        cur.execute("ALTER TABLE users ADD COLUMN discord_id TEXT DEFAULT NULL")
 
-    # ---- PRODUCTS ----
     cur.execute("""
         CREATE TABLE IF NOT EXISTS products (
             id SERIAL PRIMARY KEY,
@@ -122,7 +169,6 @@ def init_db():
     if "updated_at" not in pcols:
         cur.execute("ALTER TABLE products ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
 
-    # ---- PURCHASES ----
     cur.execute("""
         CREATE TABLE IF NOT EXISTS purchases (
             id SERIAL PRIMARY KEY,
@@ -140,7 +186,6 @@ def init_db():
         )
     """)
 
-    # ---- PLOTS ----
     cur.execute("""
         CREATE TABLE IF NOT EXISTS plots (
             id SERIAL PRIMARY KEY,
@@ -160,7 +205,6 @@ def init_db():
     if "kind" not in cols:
         cur.execute("ALTER TABLE plots ADD COLUMN kind TEXT DEFAULT 'rent'")
 
-    # ---- PLACES ----
     cur.execute("""
         CREATE TABLE IF NOT EXISTS places (
             id SERIAL PRIMARY KEY,
@@ -172,7 +216,6 @@ def init_db():
         )
     """)
 
-    # Чистка товаров с исчезнувшими магазинами
     cur.execute("""
         DELETE FROM products
         WHERE shop IS NULL OR shop = '' OR shop NOT IN (
@@ -180,7 +223,6 @@ def init_db():
         )
     """)
 
-    # Создаём админа
     ensure_admin(cur)
 
     con.commit()
@@ -219,7 +261,7 @@ def current_user():
 def is_admin(u):
     if not u:
         return False
-    return u.get("role") == "Администратор" or u.get("username") == "Vladimir"
+    return u.get("role") == "Администратор" or u.get("username") in ("Vladimir", "Wito")
 
 
 def require_admin(u):
@@ -264,6 +306,80 @@ def admin_page():
     return render_template("admin.html", user=u)
 
 
+# ============ DISCORD OAUTH ============
+@app.route("/auth/discord")
+def auth_discord():
+    if not discord_client:
+        return "Discord OAuth не настроен. Проверь переменные окружения.", 500
+    return redirect(discord_client.generate_uri(scope=["identify", "guilds.join"]))
+
+
+@app.route("/auth/discord/callback")
+def auth_discord_callback():
+    if not discord_client:
+        return "Discord OAuth не настроен.", 500
+
+    code = request.args.get("code")
+    if not code:
+        return "Ошибка: Discord не вернул код", 400
+
+    try:
+        access = discord_client.exchange_code(code)
+        identify = access.fetch_identify()
+
+        discord_id = str(identify["id"])
+        discord_username = identify.get("username", "player")
+        discord_avatar = identify.get("avatar")
+
+        if discord_avatar:
+            avatar_url = f"https://cdn.discordapp.com/avatars/{discord_id}/{discord_avatar}.png"
+        else:
+            avatar_url = "https://cdn.discordapp.com/embed/avatars/0.png"
+
+        con = db()
+        cur = con.cursor()
+        cur.execute("SELECT * FROM users WHERE discord_id = %s", (discord_id,))
+        user = cur.fetchone()
+
+        if not user:
+            username = f"dc_{discord_username}"
+            cur.execute("SELECT id FROM users WHERE username = %s", (username,))
+            if cur.fetchone():
+                username = f"dc_{discord_username}_{discord_id[:4]}"
+
+            cur.execute("""
+                INSERT INTO users (username, password, nickname, avatar, role, balance, discord_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
+            """, (username, "discord_oauth", discord_username, avatar_url, "Новичок", 1000, discord_id))
+            uid = cur.fetchone()["id"]
+            con.commit()
+            send_discord(f"🆕 Новый игрок вошёл через Discord: **{discord_username}**")
+        else:
+            uid = user["id"]
+
+        cur.close()
+        con.close()
+
+        try:
+            access.add_to_guild(DISCORD_GUILD_ID)
+        except Exception as e:
+            print("Guild join error:", e)
+
+        try:
+            access.add_role(DISCORD_GUILD_ID, DISCORD_ROLE_ID)
+        except Exception as e:
+            print("Role add error:", e)
+
+        token = make_token(uid)
+        res = redirect("/profile")
+        res.set_cookie("token", token, httponly=True, samesite="Lax", max_age=60 * 60 * 24 * 7)
+        return res
+
+    except Exception as e:
+        print("Discord auth error:", e)
+        return f"Ошибка авторизации: {e}", 500
+
+
 # ============ АВТОРИЗАЦИЯ ============
 @app.route("/api/register", methods=["POST"])
 def api_register():
@@ -279,8 +395,7 @@ def api_register():
     con = db()
     cur = con.cursor()
     cur.execute("SELECT id FROM users WHERE username = %s", (username,))
-    exists = cur.fetchone()
-    if exists:
+    if cur.fetchone():
         cur.close()
         con.close()
         return jsonify({"error": "Такой ник уже занят"}), 400
@@ -293,6 +408,8 @@ def api_register():
     con.commit()
     cur.close()
     con.close()
+
+    send_discord(f"🆕 Новый игрок зарегистрировался: **{username}**")
 
     token = make_token(uid)
     res = jsonify({"success": True})
@@ -454,6 +571,9 @@ def api_create_product():
     con.commit()
     cur.close()
     con.close()
+
+    send_discord(f"🛒 **{u['nickname'] or u['username']}** выставил: **{item}** за **{price} AP**")
+
     return jsonify({"success": True})
 
 
@@ -512,28 +632,23 @@ def api_buy_product(pid):
 
     con = db()
     cur = con.cursor()
-
     cur.execute("SELECT * FROM products WHERE id = %s", (pid,))
     product = cur.fetchone()
     if not product:
         cur.close()
         con.close()
         return jsonify({"error": "Товар не найден"}), 404
-
     if product["seller_id"] == buyer["id"]:
         cur.close()
         con.close()
         return jsonify({"error": "Нельзя купить свой товар"}), 400
-
     if product["quantity"] < qty:
         cur.close()
         con.close()
         return jsonify({"error": "Недостаточно товара"}), 400
 
     total = product["price"] * qty * (product["per_slot"] or 1)
-
-    balance = buyer.get("balance", 0)
-    if balance < total:
+    if buyer.get("balance", 0) < total:
         cur.close()
         con.close()
         return jsonify({"error": "Недостаточно АР"}), 400
@@ -542,16 +657,17 @@ def api_buy_product(pid):
     cur.execute("UPDATE users SET balance = balance + %s WHERE id = %s", (total, product["seller_id"]))
     cur.execute("UPDATE products SET quantity = quantity - %s, updated_at = NOW() WHERE id = %s", (qty, pid))
     cur.execute("UPDATE products SET status = 'sold' WHERE id = %s AND quantity <= 0", (pid,))
-
     cur.execute("""
         INSERT INTO purchases (product_id, seller_id, buyer_id, item, quantity, per_slot, measure, total, shop, map)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, (pid, product["seller_id"], buyer["id"], product["item"], qty,
           product["per_slot"], product["measure"], total, product["shop"], map_name))
-
     con.commit()
     cur.close()
     con.close()
+
+    send_discord(f"💰 **{buyer['nickname'] or buyer['username']}** купил **{product['item']}** за **{total} AP**")
+
     return jsonify({"success": True, "total": total})
 
 
@@ -862,6 +978,8 @@ def api_health():
     info = {
         "db_url_present": bool(DATABASE_URL),
         "db_url_scheme": DATABASE_URL.split("://")[0] if DATABASE_URL else None,
+        "discord_client_ready": bool(discord_client),
+        "discord_redirect": DISCORD_REDIRECT,
     }
     try:
         con = db()
@@ -883,5 +1001,3 @@ init_db()
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-
-
