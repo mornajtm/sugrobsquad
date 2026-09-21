@@ -41,14 +41,16 @@ def allowed_file(name):
 
 app = Flask(__name__)
 
-
 # ============ АДМИН ============
 ADMIN_USERNAME = "Vladimir"
 ADMIN_PASSWORD = "Nik09112013"
 
 
+def hash_pw(pw):
+    return hashlib.sha256(pw.encode()).hexdigest()
+
+
 def ensure_admin(cur):
-    """Создаёт админ-аккаунт, если его ещё нет."""
     cur.execute("SELECT id FROM users WHERE username = %s", (ADMIN_USERNAME,))
     row = cur.fetchone()
     if row:
@@ -74,6 +76,7 @@ def init_db():
             avatar TEXT,
             role TEXT DEFAULT 'Новичок',
             balance INTEGER DEFAULT 1000,
+            is_banned BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -81,6 +84,8 @@ def init_db():
     ucols = [row[0] for row in cur.fetchall()]
     if "balance" not in ucols:
         cur.execute("ALTER TABLE users ADD COLUMN balance INTEGER DEFAULT 1000")
+    if "is_banned" not in ucols:
+        cur.execute("ALTER TABLE users ADD COLUMN is_banned BOOLEAN DEFAULT FALSE")
 
     # ---- PRODUCTS ----
     cur.execute("""
@@ -157,7 +162,7 @@ def init_db():
         )
     """)
 
-    # Чистка товаров с несуществующим магазином
+    # Чистка товаров с исчезнувшими магазинами
     cur.execute("""
         DELETE FROM products
         WHERE shop IS NULL OR shop = '' OR shop NOT IN (
@@ -177,10 +182,6 @@ def db():
     con = psycopg2.connect(DATABASE_URL)
     con.cursor_factory = psycopg2.extras.RealDictCursor
     return con
-
-
-def hash_pw(pw):
-    return hashlib.sha256(pw.encode()).hexdigest()
 
 
 SESSIONS = {}
@@ -203,6 +204,18 @@ def current_user():
     cur.close()
     con.close()
     return user
+
+
+def is_admin(u):
+    if not u:
+        return False
+    return u.get("role") == "Администратор" or u.get("username") == "Vladimir"
+
+
+def require_admin(u):
+    if not is_admin(u):
+        return jsonify({"error": "Доступ только для админа"}), 403
+    return None
 
 
 # ============ СТРАНИЦЫ ============
@@ -231,6 +244,14 @@ def realty_page():
 @app.route("/places")
 def places_page():
     return render_template("places.html", user=current_user())
+
+
+@app.route("/admin")
+def admin_page():
+    u = current_user()
+    if not is_admin(u):
+        return redirect("/")
+    return render_template("admin.html", user=u)
 
 
 # ============ АВТОРИЗАЦИЯ ============
@@ -284,6 +305,9 @@ def api_login():
 
     if not user or user["password"] != hash_pw(password):
         return jsonify({"error": "Неверный ник или пароль"}), 401
+
+    if user.get("is_banned"):
+        return jsonify({"error": "Аккаунт заблокирован"}), 403
 
     token = make_token(user["id"])
     res = jsonify({"success": True})
@@ -506,7 +530,6 @@ def api_buy_product(pid):
 
     cur.execute("UPDATE users SET balance = balance - %s WHERE id = %s", (total, buyer["id"]))
     cur.execute("UPDATE users SET balance = balance + %s WHERE id = %s", (total, product["seller_id"]))
-
     cur.execute("UPDATE products SET quantity = quantity - %s, updated_at = NOW() WHERE id = %s", (qty, pid))
     cur.execute("UPDATE products SET status = 'sold' WHERE id = %s AND quantity <= 0", (pid,))
 
@@ -678,13 +701,157 @@ def api_delete_place(pid):
     return jsonify({"success": True})
 
 
+# ============ АДМИНКА ============
+@app.route("/api/admin/users", methods=["GET"])
+def admin_users():
+    u = current_user()
+    err = require_admin(u)
+    if err: return err
+
+    con = db()
+    cur = con.cursor()
+    cur.execute("""
+        SELECT id, username, nickname, avatar, role, balance, is_banned, created_at
+        FROM users ORDER BY id ASC
+    """)
+    rows = cur.fetchall()
+    cur.close()
+    con.close()
+    result = []
+    for r in rows:
+        d = dict(r)
+        if d.get("created_at"):
+            d["created_at"] = d["created_at"].isoformat()
+        result.append(d)
+    return jsonify({"users": result})
+
+
+@app.route("/api/admin/users/<int:uid>/password", methods=["POST"])
+def admin_change_password(uid):
+    u = current_user()
+    err = require_admin(u)
+    if err: return err
+
+    data = request.get_json() or {}
+    new_pass = (data.get("password") or "").strip()
+    if len(new_pass) < 6:
+        return jsonify({"error": "Пароль минимум 6 символов"}), 400
+
+    con = db()
+    cur = con.cursor()
+    cur.execute("UPDATE users SET password = %s WHERE id = %s", (hash_pw(new_pass), uid))
+    con.commit()
+    cur.close()
+    con.close()
+    return jsonify({"success": True})
+
+
+@app.route("/api/admin/users/<int:uid>/ban", methods=["POST"])
+def admin_ban_user(uid):
+    u = current_user()
+    err = require_admin(u)
+    if err: return err
+    if uid == u["id"]:
+        return jsonify({"error": "Нельзя забанить себя"}), 400
+
+    data = request.get_json() or {}
+    ban = bool(data.get("ban"))
+
+    con = db()
+    cur = con.cursor()
+    cur.execute("UPDATE users SET is_banned = %s WHERE id = %s", (ban, uid))
+    con.commit()
+    cur.close()
+    con.close()
+    return jsonify({"success": True})
+
+
+@app.route("/api/admin/users/<int:uid>/balance", methods=["POST"])
+def admin_change_balance(uid):
+    u = current_user()
+    err = require_admin(u)
+    if err: return err
+
+    data = request.get_json() or {}
+    try:
+        amount = int(data.get("amount") or 0)
+    except:
+        return jsonify({"error": "Неверная сумма"}), 400
+
+    con = db()
+    cur = con.cursor()
+    cur.execute("UPDATE users SET balance = balance + %s WHERE id = %s", (amount, uid))
+    con.commit()
+    cur.close()
+    con.close()
+    return jsonify({"success": True})
+
+
+@app.route("/api/admin/users/<int:uid>", methods=["DELETE"])
+def admin_delete_user(uid):
+    u = current_user()
+    err = require_admin(u)
+    if err: return err
+    if uid == u["id"]:
+        return jsonify({"error": "Нельзя удалить себя"}), 400
+
+    con = db()
+    cur = con.cursor()
+    cur.execute("DELETE FROM users WHERE id = %s", (uid,))
+    con.commit()
+    cur.close()
+    con.close()
+    return jsonify({"success": True})
+
+
+@app.route("/api/admin/products/<int:pid>", methods=["DELETE"])
+def admin_delete_product(pid):
+    u = current_user()
+    err = require_admin(u)
+    if err: return err
+    con = db()
+    cur = con.cursor()
+    cur.execute("DELETE FROM products WHERE id = %s", (pid,))
+    con.commit()
+    cur.close()
+    con.close()
+    return jsonify({"success": True})
+
+
+@app.route("/api/admin/plots/<int:pid>", methods=["DELETE"])
+def admin_delete_plot(pid):
+    u = current_user()
+    err = require_admin(u)
+    if err: return err
+    con = db()
+    cur = con.cursor()
+    cur.execute("DELETE FROM plots WHERE id = %s", (pid,))
+    con.commit()
+    cur.close()
+    con.close()
+    return jsonify({"success": True})
+
+
+@app.route("/api/admin/places/<int:pid>", methods=["DELETE"])
+def admin_delete_place(pid):
+    u = current_user()
+    err = require_admin(u)
+    if err: return err
+    con = db()
+    cur = con.cursor()
+    cur.execute("DELETE FROM places WHERE id = %s", (pid,))
+    con.commit()
+    cur.close()
+    con.close()
+    return jsonify({"success": True})
+
+
 # ============ ДИАГНОСТИКА ============
 @app.route("/api/health")
 def api_health():
     info = {
         "db_url_present": bool(DATABASE_URL),
         "db_url_scheme": DATABASE_URL.split("://")[0] if DATABASE_URL else None,
-        "db_url_length": len(DATABASE_URL) if DATABASE_URL else 0,
     }
     try:
         con = db()
