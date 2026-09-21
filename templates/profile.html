@@ -21,6 +21,9 @@
       <a href="/trade"><i data-lucide="shopping-bag"></i> Торговля</a>
       <a href="/realty"><i data-lucide="store"></i> Недвижимость</a>
       <a href="/places"><i data-lucide="map-pin"></i> Общественные места</a>
+      {% if user and (user.role == 'Администратор' or user.username == 'Vladimir') %}
+      <a href="/admin"><i data-lucide="shield"></i> Админ-панель</a>
+      {% endif %}
     </nav>
   </aside>
 
