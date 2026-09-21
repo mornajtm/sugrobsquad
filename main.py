@@ -313,20 +313,35 @@ def auth_discord():
         return "Discord OAuth не настроен. Проверь переменные окружения.", 500
     return redirect(discord_client.generate_uri(scope=["identify", "guilds.join"]))
 
-
 @app.route("/auth/discord/callback")
 def auth_discord_callback():
-    if not discord_client:
-        return "Discord OAuth не настроен.", 500
+    import traceback
+    from flask import request
 
-    code = request.args.get("code")
+    # Шаг 1: смотрим, что прислал Discord
+    args = dict(request.args)
+    print("DISCORD CALLBACK ARGS:", args)
+
+    # Если Discord вернул ошибку — показываем её
+    if "error" in args:
+        err = args.get("error")
+        desc = args.get("error_description", "")
+        return f"<pre>Discord вернул ошибку:\n  error = {err}\n  description = {desc}\n\nПолные параметры:\n{args}</pre>", 400
+
+    # Если кода нет вообще — показываем что пришло
+    code = args.get("code")
     if not code:
-        return "Ошибка: Discord не вернул код", 400
+        return f"<pre>Discord не вернул code.\n\nЧто пришло:\n{args}\n\nПроверь:\n1. В Discord Developer Portal → OAuth2 → Redirects есть https://sugrobsquad.relaxdev.ru/auth/discord/callback\n2. В RelaxDev переменная DISCORD_REDIRECT — точно такая же\n3. На странице Discord ты нажал 'Авторизовать', а не 'Отмена'</pre>", 400
+
+    if not discord_client:
+        return "Discord OAuth не настроен. Проверь переменные DISCORD_CLIENT_ID и DISCORD_CLIENT_SECRET.", 500
 
     try:
+        # Шаг 2: обмен кода на access-токен
         access = discord_client.exchange_code(code)
-        identify = access.fetch_identify()
 
+        # Шаг 3: получаем профиль Discord
+        identify = access.fetch_identify()
         discord_id = str(identify["id"])
         discord_username = identify.get("username", "player")
         discord_avatar = identify.get("avatar")
@@ -336,6 +351,7 @@ def auth_discord_callback():
         else:
             avatar_url = "https://cdn.discordapp.com/embed/avatars/0.png"
 
+        # Шаг 4: создаём/находим пользователя в БД
         con = db()
         cur = con.cursor()
         cur.execute("SELECT * FROM users WHERE discord_id = %s", (discord_id,))
@@ -360,6 +376,7 @@ def auth_discord_callback():
         cur.close()
         con.close()
 
+        # Шаг 5: пытаемся добавить на сервер и выдать роль
         try:
             access.add_to_guild(DISCORD_GUILD_ID)
         except Exception as e:
@@ -370,14 +387,16 @@ def auth_discord_callback():
         except Exception as e:
             print("Role add error:", e)
 
+        # Шаг 6: создаём сессию
         token = make_token(uid)
         res = redirect("/profile")
         res.set_cookie("token", token, httponly=True, samesite="Lax", max_age=60 * 60 * 24 * 7)
         return res
 
     except Exception as e:
-        print("Discord auth error:", e)
-        return f"Ошибка авторизации: {e}", 500
+        tb = traceback.format_exc()
+        print("Discord auth error:", tb)
+        return f"<pre>Ошибка при обмене кода:\n\nТип: {type(e).__name__}\nТекст: {e}\n\nПолный traceback:\n\n{tb}</pre>", 500
 
 
 # ============ АВТОРИЗАЦИЯ ============
