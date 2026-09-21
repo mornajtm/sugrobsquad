@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
     input.type = input.type === "password" ? "text" : "password";
   };
 
-    // ============ РЕГИСТРАЦИЯ ============
+  // ============ РЕГИСТРАЦИЯ ============
   const registerForm = document.getElementById("registerForm");
   if (registerForm) {
     registerForm.addEventListener("submit", async (e) => {
@@ -69,25 +69,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const json = await res.json();
         if (!res.ok) { err.textContent = json.error || "Ошибка"; return; }
 
-        // Успех: переключаемся на вкладку "Войти" и сообщаем
         err.style.color = "#2a8";
         err.textContent = "Аккаунт создан! Теперь войди.";
-
-        // Сброс формы регистрации
         registerForm.reset();
 
-        // Переключить на вкладку Войти через 1 секунду
         setTimeout(() => {
           const loginTab = document.querySelector('.tab[data-tab="login"]');
           if (loginTab) loginTab.click();
-
-          // Перенести ник в поле логина, если получится
-          const loginUsername = document.querySelector('#loginForm input[name="username"]');
-          if (loginUsername) {
-            loginUsername.value = registerForm.username.value.trim() || "";
-          }
-
-          // Обнулить ошибку через 3 секунды
           setTimeout(() => {
             err.textContent = "";
             err.style.color = "";
@@ -205,6 +193,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <p class="profile-handle">@${escapeHtml(u.username)}</p>
           <span class="role">${escapeHtml(u.role)}</span>
           <p class="profile-about">${escapeHtml(u.about) || "Пока нет описания..."}</p>
+          <p class="profile-meta">Баланс: ${u.balance || 0} АР</p>
           <p class="profile-meta">В скваде с: ${new Date(u.created_at).toLocaleDateString("ru")}</p>
           <div class="btn-row-left">
             <button class="btn primary" id="editProfileBtn">Редактировать</button>
@@ -272,7 +261,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ============ АНИМАЦИЯ ПОЯВЛЕНИЯ ============
+  // ============ АНИМАЦИЯ ============
   const joinSection = document.getElementById("joinSection");
   if (joinSection) {
     const observer = new IntersectionObserver((entries) => {
@@ -374,7 +363,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (openCreateProduct) {
       openCreateProduct.addEventListener("click", async () => {
         const shops = await loadMyShops();
-
         if (!shops.length) {
           if (noShopsBlock) noShopsBlock.style.display = "block";
           if (createProductForm) createProductForm.style.display = "none";
@@ -386,7 +374,6 @@ document.addEventListener("DOMContentLoaded", () => {
               shops.map(s => `<option value="${escapeHtml(s.title)}">${escapeHtml(s.title)} (${escapeHtml(s.map || "")} X:${s.x} Z:${s.z})</option>`).join("");
           }
         }
-
         if (createProductModal) createProductModal.classList.add("active");
         if (window.lucide) lucide.createIcons();
       });
@@ -554,6 +541,114 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     loadPlots();
+  }
+
+  // ============ ОБЩЕСТВЕННЫЕ МЕСТА ============
+  const placesBody = document.getElementById("placesBody");
+  if (placesBody) {
+    let allPlaces = [];
+    let currentFilter = "active";
+
+    async function loadPlaces() {
+      const res = await fetch("/api/places");
+      const data = await res.json();
+      allPlaces = data.places || [];
+      renderPlaces();
+    }
+
+    function renderPlaces() {
+      let list = [...allPlaces];
+      if (currentFilter === "active") list = list.filter(p => p.title);
+
+      if (!list.length) {
+        placesBody.innerHTML = `<tr><td colspan="6" class="empty-row">Список мест пустой</td></tr>`;
+        return;
+      }
+
+      placesBody.innerHTML = list.map(p => `
+        <tr>
+          <td>
+            <div class="seller-cell">
+              <div class="seller-avatar">
+                ${p.avatar ? `<img src="${escapeHtml(p.avatar)}">` : '<i data-lucide="user"></i>'}
+              </div>
+              <div>
+                <div class="seller-name">${escapeHtml(p.nickname || p.username)}</div>
+                <div class="seller-role">Ответственный</div>
+              </div>
+            </div>
+          </td>
+          <td>${escapeHtml(p.title)}</td>
+          <td>${p.x}</td>
+          <td>${p.z}</td>
+          <td>${new Date(p.created_at).toLocaleDateString("ru")}</td>
+          <td>
+            <button class="icon-btn" title="Удалить" data-del-place="${p.id}">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </td>
+        </tr>
+      `).join("");
+
+      if (window.lucide) lucide.createIcons();
+
+      placesBody.querySelectorAll("[data-del-place]").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("Удалить место?")) return;
+          await fetch(`/api/places/${btn.dataset.delPlace}`, { method: "DELETE" });
+          loadPlaces();
+        });
+      });
+    }
+
+    document.querySelectorAll(".tabline").forEach(t => {
+      t.addEventListener("click", () => {
+        document.querySelectorAll(".tabline").forEach(x => x.classList.remove("active"));
+        t.classList.add("active");
+        currentFilter = t.dataset.filter || "active";
+        renderPlaces();
+      });
+    });
+
+    const createPlaceModal = document.getElementById("createPlaceModal");
+    const createPlaceForm = document.getElementById("createPlaceForm");
+    const openCreatePlace = document.getElementById("openCreatePlace");
+
+    if (openCreatePlace) {
+      openCreatePlace.addEventListener("click", () => createPlaceModal.classList.add("active"));
+    }
+
+    document.querySelectorAll("[data-close]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const m = document.getElementById(btn.dataset.close);
+        if (m) m.classList.remove("active");
+      });
+    });
+
+    if (createPlaceForm) {
+      createPlaceForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const err = document.getElementById("createPlaceError");
+        err.textContent = "";
+        const data = {
+          title: createPlaceForm.title.value,
+          x: createPlaceForm.x.value,
+          z: createPlaceForm.z.value,
+        };
+        const res = await fetch("/api/places", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const json = await res.json();
+        if (!res.ok) return (err.textContent = json.error || "Ошибка");
+        createPlaceModal.classList.remove("active");
+        createPlaceForm.reset();
+        loadPlaces();
+      });
+    }
+
+    loadPlaces();
   }
 
   // ============ УВЕДОМЛЕНИЯ ============
