@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Админ-панель — SUGROB SQUAD</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <div class="side-menu-overlay" id="sideMenuOverlay"></div>
+  <aside class="side-menu" id="sideMenu">
+    <div class="side-menu-head">
+      <span>Меню</span>
+      <button id="closeSideMenu">✕</button>
+    </div>
+    <nav class="side-menu-nav">
+      <a href="/"><i data-lucide="home"></i> Главная</a>
+      <a href="/profile"><i data-lucide="user"></i> Профиль</a>
+      <a href="/trade"><i data-lucide="shopping-bag"></i> Торговля</a>
+      <a href="/realty"><i data-lucide="store"></i> Недвижимость</a>
+      <a href="/places"><i data-lucide="map-pin"></i> Общественные места</a>
+      <a href="/admin"><i data-lucide="shield"></i> Админ-панель</a>
+    </nav>
+  </aside>
+
+  <header class="topbar">
+    <button class="burger"><i data-lucide="menu"></i></button>
+    <a href="/" class="logo">SUGROB SQUAD</a>
+    <div class="topbar-right">
+      <button class="icon-btn" id="openNotifications" title="Уведомления">
+        <i data-lucide="bell"></i>
+      </button>
+      <a href="/profile" class="user-chip">
+        <span class="user-chip-avatar">
+          {% if user.avatar %}<img src="{{ user.avatar }}" alt="">{% else %}<i data-lucide="user"></i>{% endif %}
+        </span>
+      </a>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="page-head">
+      <h1>Админ-панель</h1>
+      <div class="page-actions">
+        <button class="icon-btn" id="reloadAdmin" title="Обновить">
+          <i data-lucide="refresh-cw"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="tabs-row">
+      <button class="tabline active" data-atab="users">Пользователи</button>
+      <button class="tabline" data-atab="products">Товары</button>
+      <button class="tabline" data-atab="plots">Объекты</button>
+      <button class="tabline" data-atab="places">Места</button>
+    </div>
+
+    <!-- Пользователи -->
+    <div id="adminUsersSection">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Игрок</th>
+            <th>Роль</th>
+            <th>Баланс</th>
+            <th>Статус</th>
+            <th>Действия</th>
+          </tr>
+        </thead>
+        <tbody id="adminUsersBody">
+          <tr><td colspan="6" class="empty-row">Загрузка...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Товары -->
+    <div id="adminProductsSection" style="display:none">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Продавец</th>
+            <th>Предмет</th>
+            <th>Цена</th>
+            <th>Кол-во</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="adminProductsBody">
+          <tr><td colspan="6" class="empty-row">Загрузка...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Объекты -->
+    <div id="adminPlotsSection" style="display:none">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Владелец</th>
+            <th>Название</th>
+            <th>Тип</th>
+            <th>Цена</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="adminPlotsBody">
+          <tr><td colspan="6" class="empty-row">Загрузка...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Места -->
+    <div id="adminPlacesSection" style="display:none">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Ответственный</th>
+            <th>Название</th>
+            <th>X</th>
+            <th>Z</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="adminPlacesBody">
+          <tr><td colspan="6" class="empty-row">Загрузка...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- Модалка смены пароля -->
+  <div class="modal-overlay" id="adminPasswordModal">
+    <div class="modal">
+      <button class="modal-close" data-close="adminPasswordModal">✕</button>
+      <h2 class="modal-title">Сменить пароль</h2>
+      <form id="adminPasswordForm" class="modal-form">
+        <label>Новый пароль <span class="req">*</span></label>
+        <input name="password" placeholder="Минимум 6 символов" required>
+        <p class="err" id="adminPasswordError"></p>
+        <button type="submit" class="btn full">Сменить</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Модалка пополнения баланса -->
+  <div class="modal-overlay" id="adminBalanceModal">
+    <div class="modal">
+      <button class="modal-close" data-close="adminBalanceModal">✕</button>
+      <h2 class="modal-title">Изменить баланс</h2>
+      <form id="adminBalanceForm" class="modal-form">
+        <label>Сумма (+ или -) <span class="req">*</span></label>
+        <input type="number" name="amount" value="100" required>
+        <p class="muted" style="font-size:12px;margin-bottom:12px">
+          Положительное число — начислить, отрицательное — списать.
+        </p>
+        <p class="err" id="adminBalanceError"></p>
+        <button type="submit" class="btn full">Применить</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>
