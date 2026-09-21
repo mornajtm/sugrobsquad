@@ -20,7 +20,7 @@
       {% if user %}<a href="/profile"><i data-lucide="user"></i> Профиль</a>{% endif %}
       <a href="/trade"><i data-lucide="shopping-bag"></i> Торговля</a>
       <a href="/realty"><i data-lucide="store"></i> Недвижимость</a>
-      <a href="/places"><i data-lucide="map-pin"></i> Общественные места</a>    
+      <a href="/places"><i data-lucide="map-pin"></i> Общественные места</a>
     </nav>
   </aside>
 
@@ -42,22 +42,18 @@
           </span>
         </a>
       {% else %}
-        <a href="/" class="nav-btn">
-          <i data-lucide="log-in"></i> Войти
-        </a>
+        <a href="/" class="nav-btn"><i data-lucide="log-in"></i> Войти</a>
       {% endif %}
     </div>
   </header>
 
   <main class="container">
     <div class="page-head">
-      <h1>Товары</h1>
+      <h1 id="pageTitle">Товары</h1>
       <div class="page-actions">
-        {% if user %}
-          <button class="icon-btn" id="openCreateProduct" title="Создать товар">
-            <i data-lucide="plus"></i>
-          </button>
-        {% endif %}
+        <button class="icon-btn" id="openCreateProduct" title="Создать товар" style="display:none">
+          <i data-lucide="plus"></i>
+        </button>
         <button class="icon-btn" id="openSearch" title="Поиск">
           <i data-lucide="search"></i>
         </button>
@@ -72,28 +68,62 @@
       </div>
     </div>
 
+    <!-- ВКЛАДКИ: Товары / Покупки -->
     <div class="tabs-row">
-      <button class="tabline active" data-filter="active">Активные</button>
-      <button class="tabline" data-filter="mine">Мои</button>
-      <button class="tabline" data-filter="all">Все</button>
+      <button class="tabline active" data-page="products">Товары</button>
+      <button class="tabline" data-page="purchases">Покупки</button>
     </div>
 
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Продавец</th>
-          <th>Предмет</th>
-          <th>Количество</th>
-          <th>Цена</th>
-          <th>Магазин</th>
-          <th>Обновлено</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="productsBody">
-        <tr><td colspan="7" class="empty-row">Загрузка...</td></tr>
-      </tbody>
-    </table>
+    <!-- ТОВАРЫ -->
+    <div id="productsSection">
+      <div class="tabs-row" style="margin-top:12px">
+        <button class="tabline active" data-filter="active">Активные</button>
+        <button class="tabline" data-filter="mine">Мои</button>
+        <button class="tabline" data-filter="all">Все</button>
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Продавец</th>
+            <th>Предмет</th>
+            <th>Количество</th>
+            <th>Цена</th>
+            <th>Магазин</th>
+            <th>Обновлено</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="productsBody">
+          <tr><td colspan="7" class="empty-row">Загрузка...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ПОКУПКИ -->
+    <div id="purchasesSection" style="display:none">
+      <div class="tabs-row" style="margin-top:12px">
+        <button class="tabline active" data-pfilter="mine">Мои</button>
+        <button class="tabline" data-pfilter="all">Все</button>
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Покупатель</th>
+            <th>Продавец</th>
+            <th>Предмет</th>
+            <th>Количество</th>
+            <th>Сумма</th>
+            <th>Магазин</th>
+            <th>Дата</th>
+          </tr>
+        </thead>
+        <tbody id="purchasesBody">
+          <tr><td colspan="7" class="empty-row">Загрузка...</td></tr>
+        </tbody>
+      </table>
+    </div>
   </main>
 
   <!-- МОДАЛКА: создать товар -->
@@ -107,7 +137,6 @@
         <button class="switch-tab" data-type="rent">Аренда</button>
       </div>
 
-      <!-- Блок: нет магазинов -->
       <div id="noShopsBlock" style="display:none; text-align:center; padding:24px 8px;">
         <div style="margin-bottom:16px; color:#666; font-size:15px;">
           У тебя пока нет магазинов.<br>Создай его в разделе «Недвижимость».
@@ -117,7 +146,6 @@
         </a>
       </div>
 
-      <!-- Блок: форма -->
       <form id="createProductForm" class="modal-form" style="display:none">
         <label>Магазин <span class="req">*</span></label>
         <select name="shop" id="shopSelect" required>
@@ -134,13 +162,18 @@
           <option value="Чародейская книга">Чародейская книга</option>
           <option value="Тотем бессмертия">Тотем бессмертия</option>
           <option value="Яйцо призыва шалкера">Яйцо призыва шалкера</option>
+          <option value="Бамбуковая нажимная плита">Бамбуковая нажимная плита</option>
+          <option value="Пластинка creator music box">Пластинка creator music box</option>
         </select>
 
         <label>Описание</label>
         <input name="description" placeholder="Описание">
 
-        <label>Количество <span class="req">*</span></label>
+        <label>Количество (слотов) <span class="req">*</span></label>
         <input type="number" name="quantity" value="1" min="1" required>
+
+        <label>По сколько (в слоте) <span class="req">*</span></label>
+        <input type="number" name="per_slot" value="1" min="1" required>
 
         <label>Мера <span class="req">*</span></label>
         <div class="radio-row">
@@ -149,10 +182,36 @@
           <label><input type="radio" name="measure" value="Шалкер"> Шалкер</label>
         </div>
 
-        <label>Цена <span class="req">*</span></label>
+        <label>Цена за единицу <span class="req">*</span></label>
         <input type="number" name="price" value="1" min="1" required>
 
         <p class="err" id="createProductError"></p>
+        <button type="submit" class="btn full">Подтвердить</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- МОДАЛКА: купить -->
+  <div class="modal-overlay" id="buyProductModal">
+    <div class="modal">
+      <button class="modal-close" data-close="buyProductModal">✕</button>
+      <h2 class="modal-title">Купить Товар</h2>
+
+      <form id="buyProductForm" class="modal-form">
+        <label>Карта <span class="req">*</span></label>
+        <select name="map" required>
+          <option value="">Выбери карту</option>
+          <option value="Overworld">Overworld</option>
+          <option value="Nether">Nether</option>
+          <option value="End">End</option>
+        </select>
+
+        <label>Количество <span class="req">*</span></label>
+        <input type="number" name="quantity" value="1" min="1" required>
+
+        <p class="muted" id="buyProductTotal" style="margin-bottom:12px"></p>
+
+        <p class="err" id="buyProductError"></p>
         <button type="submit" class="btn full">Подтвердить</button>
       </form>
     </div>
