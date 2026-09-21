@@ -6,10 +6,11 @@ import secrets
 import os
 import pathlib
 import urllib.request
+import urllib.parse
+import time
 import json as json_lib
 from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
 from werkzeug.utils import secure_filename
-import discordoauth2
 
 BASE_DIR = pathlib.Path(__file__).parent
 
@@ -56,30 +57,16 @@ def hash_pw(pw):
 
 
 # ============ DISCORD OAUTH ============
-DISCORD_CLIENT_ID = int(os.environ.get("DISCORD_CLIENT_ID", "0") or 0)
+DISCORD_CLIENT_ID = os.environ.get("DISCORD_CLIENT_ID", "")
 DISCORD_CLIENT_SECRET = os.environ.get("DISCORD_CLIENT_SECRET", "")
 DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
-DISCORD_GUILD_ID = int(os.environ.get("DISCORD_GUILD_ID", "0") or 0)
-DISCORD_ROLE_ID = int(os.environ.get("DISCORD_ROLE_ID", "0") or 0)
+DISCORD_GUILD_ID = os.environ.get("DISCORD_GUILD_ID", "")
+DISCORD_ROLE_ID = os.environ.get("DISCORD_ROLE_ID", "")
 DISCORD_REDIRECT = os.environ.get(
     "DISCORD_REDIRECT",
     "https://sugrobsquad.relaxdev.ru/auth/discord/callback"
 )
 
-discord_client = None
-if DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET:
-    try:
-        discord_client = discordoauth2.Client(
-            DISCORD_CLIENT_ID,
-            secret=DISCORD_CLIENT_SECRET,
-            redirect=DISCORD_REDIRECT,
-            bot_token=DISCORD_BOT_TOKEN or None,
-        )
-    except Exception as e:
-        print("Discord client init error:", e)
-
-
-# ============ DISCORD WEBHOOK ============
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
 
 
@@ -306,26 +293,37 @@ def admin_page():
     return render_template("admin.html", user=u)
 
 
-# ============ DISCORD OAUTH ============
+# ============ DISCORD OAUTH (РУЧНОЙ) ============
 @app.route("/auth/discord")
 def auth_discord():
-    if not discord_client:
-        return "Discord OAuth не настроен. Проверь переменные окружения.", 500
-    return redirect(discord_client.generate_uri(scope=["identify", "guilds.join"]))
+    if not DISCORD_CLIENT_ID:
+        return "DISCORD_CLIENT_ID не задан в переменных окружения.", 500
+
+    params = urllib.parse.urlencode({
+        "client_id": DISCORD_CLIENT_ID,
+        "redirect_uri": DISCORD_REDIRECT,
+        "response_type": "code",
+        "scope": "identify guilds.join",
+    })
+    return redirect(f"https://discord.com/oauth2/authorize?{params}")
+
 
 @app.route("/auth/discord/callback")
 def auth_discord_callback():
-    import traceback, urllib.request, urllib.parse
+    import traceback
 
     args = dict(request.args)
     print("DISCORD CALLBACK ARGS:", args)
+
+    if "error" in args:
+        return f"<pre>Discord вернул ошибку:\n{args}</pre>", 400
 
     code = args.get("code")
     if not code:
         return f"<pre>Discord не вернул code.\nПришло: {args}</pre>", 400
 
     try:
-        # Ручной обмен кода на токен — с таймаутом 20 секунд
+        # === Обмен кода на токен ===
         payload = urllib.parse.urlencode({
             "client_id": DISCORD_CLIENT_ID,
             "client_secret": DISCORD_CLIENT_SECRET,
@@ -337,9 +335,7 @@ def auth_discord_callback():
         req = urllib.request.Request(
             "https://discord.com/api/v10/oauth2/token",
             data=payload,
-            headers={
-                "Content-Type": "application/x-www-form-urlencoded",
-            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
             method="POST",
         )
         print("Начинаем обмен кода...")
@@ -349,7 +345,7 @@ def auth_discord_callback():
 
         access_token = token_data["access_token"]
 
-        # Получаем профиль Discord
+        # === Получаем профиль Discord ===
         req2 = urllib.request.Request(
             "https://discord.com/api/v10/users/@me",
             headers={"Authorization": f"Bearer {access_token}"},
@@ -366,7 +362,7 @@ def auth_discord_callback():
         else:
             avatar_url = "https://cdn.discordapp.com/embed/avatars/0.png"
 
-        # Сохраняем/обновляем пользователя
+        # === Сохраняем/обновляем пользователя ===
         con = db()
         cur = con.cursor()
         cur.execute("SELECT * FROM users WHERE discord_id = %s", (discord_id,))
@@ -390,7 +386,7 @@ def auth_discord_callback():
         cur.close()
         con.close()
 
-        # Добавляем на сервер и выдаём роль (опционально)
+        # === Добавляем на сервер ===
         try:
             put_req = urllib.request.Request(
                 f"https://discord.com/api/v10/guilds/{DISCORD_GUILD_ID}/members/{discord_id}",
@@ -403,7 +399,11 @@ def auth_discord_callback():
             )
             urllib.request.urlopen(put_req, timeout=15)
             print("Игрок добавлен на сервер")
+        except Exception as e:
+            print("Guild join error:", e)
 
+        # === Выдаём роль ===
+        try:
             role_req = urllib.request.Request(
                 f"https://discord.com/api/v10/guilds/{DISCORD_GUILD_ID}/members/{discord_id}/roles/{DISCORD_ROLE_ID}",
                 headers={"Authorization": f"Bot {DISCORD_BOT_TOKEN}"},
@@ -412,8 +412,9 @@ def auth_discord_callback():
             urllib.request.urlopen(role_req, timeout=15)
             print("Роль выдана")
         except Exception as e:
-            print("Guild/Role error:", e)
+            print("Role add error:", e)
 
+        # === Создаём сессию ===
         token = make_token(uid)
         res = redirect("/profile")
         res.set_cookie("token", token, httponly=True, samesite="Lax", max_age=60 * 60 * 24 * 7)
@@ -423,6 +424,7 @@ def auth_discord_callback():
         tb = traceback.format_exc()
         print("Discord auth error:", tb)
         return f"<pre>Ошибка: {type(e).__name__}: {e}\n\n{tb}</pre>", 500
+
 
 # ============ АВТОРИЗАЦИЯ ============
 @app.route("/api/register", methods=["POST"])
@@ -1022,7 +1024,7 @@ def api_health():
     info = {
         "db_url_present": bool(DATABASE_URL),
         "db_url_scheme": DATABASE_URL.split("://")[0] if DATABASE_URL else None,
-        "discord_client_ready": bool(discord_client),
+        "discord_client_ready": bool(DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET),
         "discord_redirect": DISCORD_REDIRECT,
     }
     try:
@@ -1038,6 +1040,19 @@ def api_health():
         info["db_status"] = "ERROR"
         info["db_error"] = str(e)
     return jsonify(info)
+
+
+@app.route("/api/test-discord")
+def test_discord():
+    start = time.time()
+    try:
+        req = urllib.request.Request("https://discord.com/api/v10/gateway")
+        urllib.request.urlopen(req, timeout=10)
+        elapsed = time.time() - start
+        return jsonify({"status": "OK", "time": elapsed})
+    except Exception as e:
+        elapsed = time.time() - start
+        return jsonify({"status": "ERROR", "error": str(e), "time": elapsed}), 500
 
 
 init_db()
