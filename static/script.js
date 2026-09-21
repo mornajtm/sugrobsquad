@@ -272,8 +272,9 @@ document.addEventListener("DOMContentLoaded", () => {
     observer.observe(joinSection);
   }
 
-    // ============ ТОРГОВЛЯ ============
+  // ============ ТОРГОВЛЯ ============
   const productsBody = document.getElementById("productsBody");
+  const purchasesBody = document.getElementById("purchasesBody");
   if (productsBody) {
     let allProducts = [];
     let allPurchases = [];
@@ -281,10 +282,8 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentSort = "default";
     let searchQuery = { id: "", player: "", item: "" };
     let currentPage = "products";
-    let purchaseFilter = "mine";
     let currentBuyProductId = null;
 
-    // ---- Загрузка ----
     async function loadProducts() {
       const res = await fetch("/api/products");
       const data = await res.json();
@@ -299,7 +298,6 @@ document.addEventListener("DOMContentLoaded", () => {
       renderPurchases();
     }
 
-    // ---- Рендер товаров ----
     function renderProducts() {
       let list = [...allProducts];
       if (currentFilter === "active") list = list.filter(p => p.status === "active");
@@ -367,11 +365,9 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // ---- Рендер покупок ----
     function renderPurchases() {
+      if (!purchasesBody) return;
       let list = [...allPurchases];
-      // TODO: "мои" — можно фильтровать по user.id, если передашь его из шаблона
-
       if (!list.length) {
         purchasesBody.innerHTML = `<tr><td colspan="7" class="empty-row">Список покупок пустой</td></tr>`;
         return;
@@ -408,7 +404,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (window.lucide) lucide.createIcons();
     }
 
-    // ---- Переключение Товары / Покупки ----
     document.querySelectorAll(".tabline[data-page]").forEach(t => {
       t.addEventListener("click", () => {
         document.querySelectorAll(".tabline[data-page]").forEach(x => x.classList.remove("active"));
@@ -419,12 +414,10 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("pageTitle").textContent = currentPage === "products" ? "Товары" : "Покупки";
         const createBtn = document.getElementById("openCreateProduct");
         if (createBtn) createBtn.style.display = currentPage === "products" ? "inline-flex" : "none";
-
         if (currentPage === "purchases") loadPurchases();
       });
     });
 
-    // ---- Фильтры товаров ----
     document.querySelectorAll(".tabline[data-filter]").forEach(t => {
       t.addEventListener("click", () => {
         document.querySelectorAll(".tabline[data-filter]").forEach(x => x.classList.remove("active"));
@@ -434,17 +427,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
 
-    // ---- Фильтры покупок ----
-    document.querySelectorAll(".tabline[data-pfilter]").forEach(t => {
-      t.addEventListener("click", () => {
-        document.querySelectorAll(".tabline[data-pfilter]").forEach(x => x.classList.remove("active"));
-        t.classList.add("active");
-        purchaseFilter = t.dataset.pfilter || "mine";
-        renderPurchases();
-      });
-    });
-
-    // ---- Модалка создания товара ----
     const createProductModal = document.getElementById("createProductModal");
     const createProductForm = document.getElementById("createProductForm");
     const openCreateProduct = document.getElementById("openCreateProduct");
@@ -523,7 +505,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // ---- Модалка покупки ----
     const buyProductModal = document.getElementById("buyProductModal");
     const buyProductForm = document.getElementById("buyProductForm");
 
@@ -549,7 +530,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // ---- Поиск / Сортировка ----
     const searchModal = document.getElementById("searchModal");
     const openSearch = document.getElementById("openSearch");
     const applySearch = document.getElementById("applySearch");
@@ -577,11 +557,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     loadProducts();
     loadPurchases();
-
-    // Проставляем правильный id, чтобы переменная purchasesBody нашлась
-    var purchasesBody = document.getElementById("purchasesBody");
   }
-
   // ============ НЕДВИЖИМОСТЬ ============
   const plotsBody = document.getElementById("plotsBody");
   if (plotsBody) {
