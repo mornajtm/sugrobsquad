@@ -272,14 +272,19 @@ document.addEventListener("DOMContentLoaded", () => {
     observer.observe(joinSection);
   }
 
-  // ============ ТОРГОВЛЯ ============
+    // ============ ТОРГОВЛЯ ============
   const productsBody = document.getElementById("productsBody");
   if (productsBody) {
     let allProducts = [];
+    let allPurchases = [];
     let currentFilter = "active";
     let currentSort = "default";
     let searchQuery = { id: "", player: "", item: "" };
+    let currentPage = "products";
+    let purchaseFilter = "mine";
+    let currentBuyProductId = null;
 
+    // ---- Загрузка ----
     async function loadProducts() {
       const res = await fetch("/api/products");
       const data = await res.json();
@@ -287,6 +292,14 @@ document.addEventListener("DOMContentLoaded", () => {
       renderProducts();
     }
 
+    async function loadPurchases() {
+      const res = await fetch("/api/purchases");
+      const data = await res.json();
+      allPurchases = data.purchases || [];
+      renderPurchases();
+    }
+
+    // ---- Рендер товаров ----
     function renderProducts() {
       let list = [...allProducts];
       if (currentFilter === "active") list = list.filter(p => p.status === "active");
@@ -310,20 +323,40 @@ document.addEventListener("DOMContentLoaded", () => {
               <div class="seller-avatar">${p.avatar ? `<img src="${escapeHtml(p.avatar)}">` : '<i data-lucide="user"></i>'}</div>
               <div>
                 <div class="seller-name">${escapeHtml(p.nickname || p.username)}</div>
-                <div class="seller-role">Продавец</div>
+                <div class="seller-role">${p.description ? escapeHtml(p.description) : "Продавец"}</div>
               </div>
             </div>
           </td>
           <td>${escapeHtml(p.item)}</td>
-          <td>${p.quantity} * 1 ${escapeHtml(p.measure)}</td>
+          <td>${p.quantity} * ${p.per_slot || 1} ${escapeHtml(p.measure)}</td>
           <td>${p.price} AP</td>
           <td>${escapeHtml(p.shop || "—")}</td>
-          <td>${new Date(p.created_at).toLocaleDateString("ru")}</td>
-          <td><button class="icon-btn" title="Удалить" data-del="${p.id}"><i data-lucide="trash-2"></i></button></td>
+          <td>${new Date(p.updated_at || p.created_at).toLocaleDateString("ru")}</td>
+          <td>
+            <button class="icon-btn" title="Купить" data-buy="${p.id}">
+              <i data-lucide="shopping-cart"></i>
+            </button>
+            <button class="icon-btn" title="Удалить" data-del="${p.id}">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </td>
         </tr>
       `).join("");
 
       if (window.lucide) lucide.createIcons();
+
+      productsBody.querySelectorAll("[data-buy]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const p = allProducts.find(x => String(x.id) === btn.dataset.buy);
+          if (!p) return;
+          currentBuyProductId = p.id;
+          const totalLabel = document.getElementById("buyProductTotal");
+          if (totalLabel) {
+            totalLabel.textContent = `Цена: ${p.price} AP за ${p.per_slot || 1} ${p.measure}`;
+          }
+          document.getElementById("buyProductModal").classList.add("active");
+        });
+      });
 
       productsBody.querySelectorAll("[data-del]").forEach(btn => {
         btn.addEventListener("click", async () => {
@@ -334,15 +367,84 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    document.querySelectorAll(".tabline").forEach(t => {
+    // ---- Рендер покупок ----
+    function renderPurchases() {
+      let list = [...allPurchases];
+      // TODO: "мои" — можно фильтровать по user.id, если передашь его из шаблона
+
+      if (!list.length) {
+        purchasesBody.innerHTML = `<tr><td colspan="7" class="empty-row">Список покупок пустой</td></tr>`;
+        return;
+      }
+
+      purchasesBody.innerHTML = list.map(p => `
+        <tr>
+          <td>
+            <div class="seller-cell">
+              <div class="seller-avatar">${p.buyer_avatar ? `<img src="${escapeHtml(p.buyer_avatar)}">` : '<i data-lucide="user"></i>'}</div>
+              <div>
+                <div class="seller-name">${escapeHtml(p.buyer_nickname || p.buyer_username)}</div>
+                <div class="seller-role">Покупатель</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="seller-cell">
+              <div class="seller-avatar">${p.seller_avatar ? `<img src="${escapeHtml(p.seller_avatar)}">` : '<i data-lucide="user"></i>'}</div>
+              <div>
+                <div class="seller-name">${escapeHtml(p.seller_nickname || p.seller_username)}</div>
+                <div class="seller-role">Продавец</div>
+              </div>
+            </div>
+          </td>
+          <td>${escapeHtml(p.item)}</td>
+          <td>${p.quantity} * ${p.per_slot || 1} ${escapeHtml(p.measure)}</td>
+          <td>${p.total} AP</td>
+          <td>${escapeHtml(p.shop || "—")}</td>
+          <td>${new Date(p.created_at).toLocaleDateString("ru")}</td>
+        </tr>
+      `).join("");
+
+      if (window.lucide) lucide.createIcons();
+    }
+
+    // ---- Переключение Товары / Покупки ----
+    document.querySelectorAll(".tabline[data-page]").forEach(t => {
       t.addEventListener("click", () => {
-        document.querySelectorAll(".tabline").forEach(x => x.classList.remove("active"));
+        document.querySelectorAll(".tabline[data-page]").forEach(x => x.classList.remove("active"));
+        t.classList.add("active");
+        currentPage = t.dataset.page;
+        document.getElementById("productsSection").style.display = currentPage === "products" ? "block" : "none";
+        document.getElementById("purchasesSection").style.display = currentPage === "purchases" ? "block" : "none";
+        document.getElementById("pageTitle").textContent = currentPage === "products" ? "Товары" : "Покупки";
+        const createBtn = document.getElementById("openCreateProduct");
+        if (createBtn) createBtn.style.display = currentPage === "products" ? "inline-flex" : "none";
+
+        if (currentPage === "purchases") loadPurchases();
+      });
+    });
+
+    // ---- Фильтры товаров ----
+    document.querySelectorAll(".tabline[data-filter]").forEach(t => {
+      t.addEventListener("click", () => {
+        document.querySelectorAll(".tabline[data-filter]").forEach(x => x.classList.remove("active"));
         t.classList.add("active");
         currentFilter = t.dataset.filter || "active";
         renderProducts();
       });
     });
 
+    // ---- Фильтры покупок ----
+    document.querySelectorAll(".tabline[data-pfilter]").forEach(t => {
+      t.addEventListener("click", () => {
+        document.querySelectorAll(".tabline[data-pfilter]").forEach(x => x.classList.remove("active"));
+        t.classList.add("active");
+        purchaseFilter = t.dataset.pfilter || "mine";
+        renderPurchases();
+      });
+    });
+
+    // ---- Модалка создания товара ----
     const createProductModal = document.getElementById("createProductModal");
     const createProductForm = document.getElementById("createProductForm");
     const openCreateProduct = document.getElementById("openCreateProduct");
@@ -355,9 +457,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!res.ok) return [];
         const data = await res.json();
         return data.shops || [];
-      } catch {
-        return [];
-      }
+      } catch { return []; }
     }
 
     if (openCreateProduct) {
@@ -406,6 +506,7 @@ document.addEventListener("DOMContentLoaded", () => {
           item: createProductForm.item.value,
           description: createProductForm.description.value,
           quantity: createProductForm.quantity.value,
+          per_slot: createProductForm.per_slot.value,
           measure: createProductForm.querySelector('input[name="measure"]:checked').value,
           price: createProductForm.price.value,
         };
@@ -422,6 +523,33 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
+    // ---- Модалка покупки ----
+    const buyProductModal = document.getElementById("buyProductModal");
+    const buyProductForm = document.getElementById("buyProductForm");
+
+    if (buyProductForm) {
+      buyProductForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const err = document.getElementById("buyProductError");
+        err.textContent = "";
+        const data = {
+          quantity: buyProductForm.quantity.value,
+          map: buyProductForm.map.value,
+        };
+        const res = await fetch(`/api/products/${currentBuyProductId}/buy`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const json = await res.json();
+        if (!res.ok) return (err.textContent = json.error || "Ошибка");
+        buyProductModal.classList.remove("active");
+        buyProductForm.reset();
+        loadProducts();
+      });
+    }
+
+    // ---- Поиск / Сортировка ----
     const searchModal = document.getElementById("searchModal");
     const openSearch = document.getElementById("openSearch");
     const applySearch = document.getElementById("applySearch");
@@ -448,6 +576,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     loadProducts();
+    loadPurchases();
+
+    // Проставляем правильный id, чтобы переменная purchasesBody нашлась
+    var purchasesBody = document.getElementById("purchasesBody");
   }
 
   // ============ НЕДВИЖИМОСТЬ ============
