@@ -55,9 +55,15 @@ def init_db():
             about TEXT,
             avatar TEXT,
             role TEXT DEFAULT 'Новичок',
+            balance INTEGER DEFAULT 1000,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'")
+    ucols = [row[0] for row in cur.fetchall()]
+    if "balance" not in ucols:
+        cur.execute("ALTER TABLE users ADD COLUMN balance INTEGER DEFAULT 1000")
 
     cur.execute("""
         CREATE TABLE IF NOT EXISTS products (
@@ -90,13 +96,21 @@ def init_db():
         )
     """)
 
-    cur.execute("""
-        SELECT column_name FROM information_schema.columns
-        WHERE table_name = 'plots'
-    """)
+    cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'plots'")
     cols = [row[0] for row in cur.fetchall()]
     if "kind" not in cols:
         cur.execute("ALTER TABLE plots ADD COLUMN kind TEXT DEFAULT 'rent'")
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS places (
+            id SERIAL PRIMARY KEY,
+            owner_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            x INTEGER DEFAULT 0,
+            z INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
 
     cur.execute("""
         DELETE FROM products
@@ -165,6 +179,11 @@ def realty_page():
     return render_template("realty.html", user=current_user())
 
 
+@app.route("/places")
+def places_page():
+    return render_template("places.html", user=current_user())
+
+
 # ============ АВТОРИЗАЦИЯ ============
 @app.route("/api/register", methods=["POST"])
 def api_register():
@@ -187,8 +206,8 @@ def api_register():
         return jsonify({"error": "Такой ник уже занят"}), 400
 
     cur.execute(
-        "INSERT INTO users (username, password, nickname) VALUES (%s, %s, %s) RETURNING id",
-        (username, hash_pw(password), username),
+        "INSERT INTO users (username, password, nickname, balance) VALUES (%s, %s, %s, %s) RETURNING id",
+        (username, hash_pw(password), username, 1000),
     )
     uid = cur.fetchone()["id"]
     con.commit()
@@ -246,6 +265,7 @@ def api_get_profile():
             "about": u["about"] or "",
             "avatar": u["avatar"] or "",
             "role": u["role"],
+            "balance": u.get("balance", 0),
             "created_at": u["created_at"].isoformat() if u["created_at"] else "",
         }
     })
@@ -269,7 +289,6 @@ def api_update_profile():
     return jsonify({"success": True})
 
 
-# ============ ЗАГРУЗКА АВАТАРА ============
 @app.route("/api/upload-avatar", methods=["POST"])
 def api_upload_avatar():
     u = current_user()
@@ -444,7 +463,6 @@ def api_rent_plot(pid):
     return jsonify({"success": True})
 
 
-# ============ МОИ МАГАЗИНЫ ============
 @app.route("/api/my-shops", methods=["GET"])
 def api_my_shops():
     u = current_user()
@@ -463,29 +481,67 @@ def api_my_shops():
     return jsonify({"shops": [dict(r) for r in rows]})
 
 
-# ============ ДИАГНОСТИКА ============
-@app.route("/api/health")
-def api_health():
-    info = {
-        "db_url_present": bool(DATABASE_URL),
-        "db_url_scheme": DATABASE_URL.split("://")[0] if DATABASE_URL else None,
-        "db_url_length": len(DATABASE_URL) if DATABASE_URL else 0,
-        "db_url_has_connection_limit": "connection_limit" in (DATABASE_URL or ""),
-        "db_url_has_sslmode": "sslmode" in (DATABASE_URL or ""),
-    }
-    try:
-        con = db()
-        cur = con.cursor()
-        cur.execute("SELECT COUNT(*) AS c FROM users")
-        row = cur.fetchone()
-        info["users_count"] = row["c"] if isinstance(row, dict) else row[0]
-        cur.close()
-        con.close()
-        info["db_status"] = "OK"
-    except Exception as e:
-        info["db_status"] = "ERROR"
-        info["db_error"] = str(e)
-    return jsonify(info)
+# ============ ОБЩЕСТВЕННЫЕ МЕСТА ============
+@app.route("/api/places", methods=["GET"])
+def api_places():
+    con = db()
+    cur = con.cursor()
+    cur.execute("""
+        SELECT p.*, u.username, u.nickname, u.avatar
+        FROM places p
+        JOIN users u ON u.id = p.owner_id
+        ORDER BY p.created_at DESC
+    """)
+    rows = cur.fetchall()
+    cur.close()
+    con.close()
+    result = []
+    for r in rows:
+        d = dict(r)
+        if d.get("created_at"):
+            d["created_at"] = d["created_at"].isoformat()
+        result.append(d)
+    return jsonify({"places": result})
+
+
+@app.route("/api/places", methods=["POST"])
+def api_create_place():
+    u = current_user()
+    if not u:
+        return jsonify({"error": "Не авторизован"}), 401
+
+    data = request.get_json() or {}
+    title = (data.get("title") or "").strip()
+    x = int(data.get("x") or 0)
+    z = int(data.get("z") or 0)
+
+    if not title:
+        return jsonify({"error": "Укажи название"}), 400
+
+    con = db()
+    cur = con.cursor()
+    cur.execute("""
+        INSERT INTO places (owner_id, title, x, z)
+        VALUES (%s, %s, %s, %s)
+    """, (u["id"], title, x, z))
+    con.commit()
+    cur.close()
+    con.close()
+    return jsonify({"success": True})
+
+
+@app.route("/api/places/<int:pid>", methods=["DELETE"])
+def api_delete_place(pid):
+    u = current_user()
+    if not u:
+        return jsonify({"error": "Не авторизован"}), 401
+    con = db()
+    cur = con.cursor()
+    cur.execute("DELETE FROM places WHERE id = %s AND owner_id = %s", (pid, u["id"]))
+    con.commit()
+    cur.close()
+    con.close()
+    return jsonify({"success": True})
 
 
 init_db()
