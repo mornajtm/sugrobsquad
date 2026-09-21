@@ -194,7 +194,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <span class="role">${escapeHtml(u.role)}</span>
           <p class="profile-about">${escapeHtml(u.about) || "Пока нет описания..."}</p>
           <p class="profile-meta">Баланс: ${u.balance || 0} АР</p>
-          <p class="profile-meta">В скваде с: ${new Date(u.created_at).toLocaleDateString("ru")}</p>
+          <p class="profile-meta">Зарегистрирован: ${new Date(u.created_at).toLocaleDateString("ru")}</p>
           <div class="btn-row-left">
             <button class="btn primary" id="editProfileBtn">Редактировать</button>
           </div>
