@@ -51,14 +51,24 @@ def hash_pw(pw):
 
 
 def ensure_admin(cur):
-    cur.execute("SELECT id FROM users WHERE username = %s", (ADMIN_USERNAME,))
-    row = cur.fetchone()
-    if row:
-        return
-    cur.execute("""
-        INSERT INTO users (username, password, nickname, role, balance)
-        VALUES (%s, %s, %s, %s, %s)
-    """, (ADMIN_USERNAME, hash_pw(ADMIN_PASSWORD), ADMIN_USERNAME, "Администратор", 999999))
+    admins = [
+        ("Vladimir", "Nik09112013"),
+        ("Wito", "kvadrober"),
+    ]
+    for username, password in admins:
+        cur.execute("SELECT id FROM users WHERE username = %s", (username,))
+        row = cur.fetchone()
+        if row:
+            # Если пользователь есть, но роль не Админ — обновим
+            cur.execute(
+                "UPDATE users SET role = 'Администратор' WHERE id = %s",
+                (row[0] if not isinstance(row, dict) else row["id"],)
+            )
+            continue
+        cur.execute("""
+            INSERT INTO users (username, password, nickname, role, balance)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (username, hash_pw(password), username, "Администратор", 999999))
 
 
 def init_db():
