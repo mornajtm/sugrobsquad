@@ -34,11 +34,7 @@
         </button>
         <a href="/profile" class="user-chip">
           <span class="user-chip-avatar">
-            {% if user.avatar %}
-              <img src="{{ user.avatar }}" alt="">
-            {% else %}
-              <i data-lucide="user"></i>
-            {% endif %}
+            {% if user.avatar %}<img src="{{ user.avatar }}" alt="">{% else %}<i data-lucide="user"></i>{% endif %}
           </span>
         </a>
       {% else %}
@@ -68,13 +64,11 @@
       </div>
     </div>
 
-    <!-- ВКЛАДКИ: Товары / Покупки -->
     <div class="tabs-row">
       <button class="tabline active" data-page="products">Товары</button>
       <button class="tabline" data-page="purchases">Покупки</button>
     </div>
 
-    <!-- ТОВАРЫ -->
     <div id="productsSection">
       <div class="tabs-row" style="margin-top:12px">
         <button class="tabline active" data-filter="active">Активные</button>
@@ -100,7 +94,6 @@
       </table>
     </div>
 
-    <!-- ПОКУПКИ -->
     <div id="purchasesSection" style="display:none">
       <div class="tabs-row" style="margin-top:12px">
         <button class="tabline active" data-pfilter="mine">Мои</button>
@@ -126,7 +119,6 @@
     </div>
   </main>
 
-  <!-- МОДАЛКА: создать товар -->
   <div class="modal-overlay" id="createProductModal">
     <div class="modal modal-lg">
       <button class="modal-close" data-close="createProductModal">✕</button>
@@ -162,8 +154,6 @@
           <option value="Чародейская книга">Чародейская книга</option>
           <option value="Тотем бессмертия">Тотем бессмертия</option>
           <option value="Яйцо призыва шалкера">Яйцо призыва шалкера</option>
-          <option value="Бамбуковая нажимная плита">Бамбуковая нажимная плита</option>
-          <option value="Пластинка creator music box">Пластинка creator music box</option>
         </select>
 
         <label>Описание</label>
@@ -191,7 +181,6 @@
     </div>
   </div>
 
-  <!-- МОДАЛКА: купить -->
   <div class="modal-overlay" id="buyProductModal">
     <div class="modal">
       <button class="modal-close" data-close="buyProductModal">✕</button>
@@ -217,7 +206,6 @@
     </div>
   </div>
 
-  <!-- МОДАЛКА: поиск -->
   <div class="modal-overlay" id="searchModal">
     <div class="modal">
       <button class="modal-close" data-close="searchModal">✕</button>
