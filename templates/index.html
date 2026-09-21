@@ -21,7 +21,7 @@
       <a href="/trade"><i data-lucide="shopping-bag"></i> Торговля</a>
       <a href="/realty"><i data-lucide="store"></i> Недвижимость</a>
       <a href="/places"><i data-lucide="map-pin"></i> Общественные места</a>
-      {% if user and (user.role == 'Администратор' or user.username == 'Vladimir') %}
+      {% if user and (user.role == 'Администратор' or user.username == 'Vladimir' or user.username == 'Wito') %}
       <a href="/admin"><i data-lucide="shield"></i> Админ-панель</a>
       {% endif %}
     </nav>
@@ -74,7 +74,7 @@
         </div>
       </div>
       <div class="hero-image">
-        <img src="/static/images/hero.png" alt="SUGROB SQUAD" class="hero-img">
+        <img src="https://mc-heads.net/body/Zakatis/right" alt="SUGROB SQUAD" class="hero-img">
       </div>
     </section>
 
@@ -114,6 +114,10 @@
     <div class="modal">
       <button class="modal-close" id="closeAuthBtn">✕</button>
       <h2 class="modal-title">Войти в систему</h2>
+
+      <a href="/auth/discord" class="btn full" style="background:#5865F2;color:#fff;margin-bottom:16px;display:flex;justify-content:center;gap:8px">
+        <i data-lucide="message-circle"></i> Войти через Discord
+      </a>
 
       <div class="tabs">
         <button class="tab active" data-tab="login">Войти</button>
