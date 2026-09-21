@@ -46,6 +46,7 @@ def init_db():
     con = psycopg2.connect(DATABASE_URL)
     cur = con.cursor()
 
+    # ---- USERS ----
     cur.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
@@ -59,12 +60,12 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-
     cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'")
     ucols = [row[0] for row in cur.fetchall()]
     if "balance" not in ucols:
         cur.execute("ALTER TABLE users ADD COLUMN balance INTEGER DEFAULT 1000")
 
+    # ---- PRODUCTS ----
     cur.execute("""
         CREATE TABLE IF NOT EXISTS products (
             id SERIAL PRIMARY KEY,
@@ -74,13 +75,40 @@ def init_db():
             item TEXT NOT NULL,
             description TEXT,
             quantity INTEGER DEFAULT 1,
+            per_slot INTEGER DEFAULT 1,
             measure TEXT DEFAULT 'Штук',
             price INTEGER DEFAULT 1,
             status TEXT DEFAULT 'active',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'products'")
+    pcols = [row[0] for row in cur.fetchall()]
+    if "per_slot" not in pcols:
+        cur.execute("ALTER TABLE products ADD COLUMN per_slot INTEGER DEFAULT 1")
+    if "updated_at" not in pcols:
+        cur.execute("ALTER TABLE products ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+
+    # ---- PURCHASES ----
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS purchases (
+            id SERIAL PRIMARY KEY,
+            product_id INTEGER,
+            seller_id INTEGER NOT NULL,
+            buyer_id INTEGER NOT NULL,
+            item TEXT NOT NULL,
+            quantity INTEGER DEFAULT 1,
+            per_slot INTEGER DEFAULT 1,
+            measure TEXT DEFAULT 'Штук',
+            total INTEGER NOT NULL,
+            shop TEXT,
+            map TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
+    # ---- PLOTS (участки + магазины) ----
     cur.execute("""
         CREATE TABLE IF NOT EXISTS plots (
             id SERIAL PRIMARY KEY,
@@ -95,12 +123,12 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-
     cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'plots'")
     cols = [row[0] for row in cur.fetchall()]
     if "kind" not in cols:
         cur.execute("ALTER TABLE plots ADD COLUMN kind TEXT DEFAULT 'rent'")
 
+    # ---- PLACES (общественные места) ----
     cur.execute("""
         CREATE TABLE IF NOT EXISTS places (
             id SERIAL PRIMARY KEY,
@@ -112,6 +140,7 @@ def init_db():
         )
     """)
 
+    # Удаляем товары, магазин которых уже не существует
     cur.execute("""
         DELETE FROM products
         WHERE shop IS NULL OR shop = '' OR shop NOT IN (
@@ -327,7 +356,7 @@ def api_products():
         SELECT p.*, u.username, u.nickname, u.avatar
         FROM products p
         JOIN users u ON u.id = p.seller_id
-        ORDER BY p.created_at DESC
+        ORDER BY p.updated_at DESC, p.created_at DESC
     """)
     rows = cur.fetchall()
     cur.close()
@@ -335,8 +364,8 @@ def api_products():
     result = []
     for r in rows:
         d = dict(r)
-        if d.get("created_at"):
-            d["created_at"] = d["created_at"].isoformat()
+        if d.get("created_at"): d["created_at"] = d["created_at"].isoformat()
+        if d.get("updated_at"): d["updated_at"] = d["updated_at"].isoformat()
         result.append(d)
     return jsonify({"products": result})
 
@@ -353,6 +382,7 @@ def api_create_product():
     item = (data.get("item") or "").strip()
     description = data.get("description", "")
     quantity = int(data.get("quantity") or 1)
+    per_slot = int(data.get("per_slot") or 1)
     measure = data.get("measure", "Штук")
     price = int(data.get("price") or 1)
 
@@ -364,9 +394,9 @@ def api_create_product():
     con = db()
     cur = con.cursor()
     cur.execute("""
-        INSERT INTO products (seller_id, type, shop, item, description, quantity, measure, price)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-    """, (u["id"], ptype, shop, item, description, quantity, measure, price))
+        INSERT INTO products (seller_id, type, shop, item, description, quantity, per_slot, measure, price)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, (u["id"], ptype, shop, item, description, quantity, per_slot, measure, price))
     con.commit()
     cur.close()
     con.close()
@@ -387,6 +417,95 @@ def api_delete_product(pid):
     return jsonify({"success": True})
 
 
+# ============ ПОКУПКИ ============
+@app.route("/api/purchases", methods=["GET"])
+def api_purchases():
+    con = db()
+    cur = con.cursor()
+    cur.execute("""
+        SELECT pu.*,
+               s.nickname AS seller_nickname, s.username AS seller_username, s.avatar AS seller_avatar,
+               b.nickname AS buyer_nickname, b.username AS buyer_username, b.avatar AS buyer_avatar
+        FROM purchases pu
+        JOIN users s ON s.id = pu.seller_id
+        JOIN users b ON b.id = pu.buyer_id
+        ORDER BY pu.created_at DESC
+    """)
+    rows = cur.fetchall()
+    cur.close()
+    con.close()
+    result = []
+    for r in rows:
+        d = dict(r)
+        if d.get("created_at"):
+            d["created_at"] = d["created_at"].isoformat()
+        result.append(d)
+    return jsonify({"purchases": result})
+
+
+@app.route("/api/products/<int:pid>/buy", methods=["POST"])
+def api_buy_product(pid):
+    buyer = current_user()
+    if not buyer:
+        return jsonify({"error": "Не авторизован"}), 401
+
+    data = request.get_json() or {}
+    qty = int(data.get("quantity") or 1)
+    map_name = data.get("map", "")
+
+    if qty < 1:
+        return jsonify({"error": "Количество минимум 1"}), 400
+
+    con = db()
+    cur = con.cursor()
+
+    cur.execute("SELECT * FROM products WHERE id = %s", (pid,))
+    product = cur.fetchone()
+    if not product:
+        cur.close()
+        con.close()
+        return jsonify({"error": "Товар не найден"}), 404
+
+    if product["seller_id"] == buyer["id"]:
+        cur.close()
+        con.close()
+        return jsonify({"error": "Нельзя купить свой товар"}), 400
+
+    if product["quantity"] < qty:
+        cur.close()
+        con.close()
+        return jsonify({"error": "Недостаточно товара"}), 400
+
+    # Общая сумма = цена * кол-во упаковок * кол-во в упаковке
+    total = product["price"] * qty * (product["per_slot"] or 1)
+
+    balance = buyer.get("balance", 0)
+    if balance < total:
+        cur.close()
+        con.close()
+        return jsonify({"error": "Недостаточно АР"}), 400
+
+    # Обновляем балансы
+    cur.execute("UPDATE users SET balance = balance - %s WHERE id = %s", (total, buyer["id"]))
+    cur.execute("UPDATE users SET balance = balance + %s WHERE id = %s", (total, product["seller_id"]))
+
+    # Уменьшаем количество товара
+    cur.execute("UPDATE products SET quantity = quantity - %s, updated_at = NOW() WHERE id = %s", (qty, pid))
+    cur.execute("UPDATE products SET status = 'sold' WHERE id = %s AND quantity <= 0", (pid,))
+
+    # Записываем покупку
+    cur.execute("""
+        INSERT INTO purchases (product_id, seller_id, buyer_id, item, quantity, per_slot, measure, total, shop, map)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, (pid, product["seller_id"], buyer["id"], product["item"], qty,
+          product["per_slot"], product["measure"], total, product["shop"], map_name))
+
+    con.commit()
+    cur.close()
+    con.close()
+    return jsonify({"success": True, "total": total})
+
+
 # ============ УЧАСТКИ / МАГАЗИНЫ ============
 @app.route("/api/plots", methods=["GET"])
 def api_plots():
@@ -404,8 +523,7 @@ def api_plots():
     result = []
     for r in rows:
         d = dict(r)
-        if d.get("created_at"):
-            d["created_at"] = d["created_at"].isoformat()
+        if d.get("created_at"): d["created_at"] = d["created_at"].isoformat()
         result.append(d)
     return jsonify({"plots": result})
 
@@ -542,6 +660,31 @@ def api_delete_place(pid):
     cur.close()
     con.close()
     return jsonify({"success": True})
+
+
+# ============ ДИАГНОСТИКА ============
+@app.route("/api/health")
+def api_health():
+    info = {
+        "db_url_present": bool(DATABASE_URL),
+        "db_url_scheme": DATABASE_URL.split("://")[0] if DATABASE_URL else None,
+        "db_url_length": len(DATABASE_URL) if DATABASE_URL else 0,
+        "db_url_has_connection_limit": "connection_limit" in (DATABASE_URL or ""),
+        "db_url_has_sslmode": "sslmode" in (DATABASE_URL or ""),
+    }
+    try:
+        con = db()
+        cur = con.cursor()
+        cur.execute("SELECT COUNT(*) AS c FROM users")
+        row = cur.fetchone()
+        info["users_count"] = row["c"] if isinstance(row, dict) else row[0]
+        cur.close()
+        con.close()
+        info["db_status"] = "OK"
+    except Exception as e:
+        info["db_status"] = "ERROR"
+        info["db_error"] = str(e)
+    return jsonify(info)
 
 
 init_db()
