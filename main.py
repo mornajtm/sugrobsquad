@@ -103,6 +103,41 @@ def ensure_admin(cur):
             VALUES (%s, %s, %s, %s, %s)
         """, (username, hash_pw(password), username, "Администратор", 999999))
 
+# ============ ЗАЯВКИ В ОРГАНИЗАЦИИ ============
+@app.route("/api/org/apply", methods=["POST"])
+def api_org_apply():
+    u = current_user()
+    if not u:
+        return jsonify({"error": "Не авторизован"}), 401
+
+    data = request.get_json() or {}
+    org = data.get("org", "")
+    mc_nick = (data.get("mc_nick") or "").strip()
+    age = data.get("age", "")
+    reason = (data.get("reason") or "").strip()
+    discord = data.get("discord", "")
+
+    if not mc_nick or not reason:
+        return jsonify({"error": "Заполни обязательные поля"}), 400
+
+    org_names = {
+        "economy": "Министерство Экономики",
+        "defense": "Министерство Обороны",
+        "hr": "Министерство HR",
+    }
+    org_name = org_names.get(org, org)
+
+    # Отправляем в Discord-webhook (если настроен)
+    send_discord(
+        f"📨 **Новая заявка в {org_name}**\n"
+        f"**Игрок:** {u['nickname'] or u['username']}\n"
+        f"**MC-ник:** {mc_nick}\n"
+        f"**Возраст:** {age}\n"
+        f"**Discord:** {discord or '—'}\n"
+        f"**Причина:** {reason}"
+    )
+
+    return jsonify({"success": True})
 
 def init_db():
     con = psycopg2.connect(DATABASE_URL)
