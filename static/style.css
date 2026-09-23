@@ -436,3 +436,93 @@ body {
     margin: 0 auto;
   }
 }
+/* ============ ОРГАНИЗАЦИИ ============ */
+.org-intro {
+  color: #666;
+  font-size: 1.05rem;
+  margin-bottom: 30px;
+  max-width: 800px;
+}
+
+.org-card {
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.9);
+  border-radius: 20px;
+  padding: 36px 40px;
+  margin-bottom: 24px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+.org-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+}
+.org-card.economy::before { background: linear-gradient(90deg, #2ECC71, #27AE60); }
+.org-card.defense::before { background: linear-gradient(90deg, #E74C3C, #C0392B); }
+.org-card.hr::before      { background: linear-gradient(90deg, #3498DB, #2980B9); }
+
+.org-icon {
+  font-size: 2.4rem;
+  margin-bottom: 12px;
+}
+
+.org-card h2 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin-bottom: 14px;
+  color: #1a1a1a;
+}
+
+.org-tagline {
+  color: #555;
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.org-divider {
+  text-align: center;
+  color: #bbb;
+  font-size: 1.2rem;
+  margin: 22px 0;
+  letter-spacing: 6px;
+}
+
+.org-list {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 20px;
+}
+.org-list li {
+  padding: 8px 0 8px 26px;
+  position: relative;
+  color: #444;
+  font-size: 0.97rem;
+  border-bottom: 1px solid #f3f3f3;
+}
+.org-list li:last-child { border-bottom: none; }
+.org-list li::before {
+  content: "•";
+  position: absolute;
+  left: 8px;
+  color: #5865F2;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+.org-actions {
+  margin-top: 24px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+  .org-card { padding: 26px 22px; }
+  .org-card h2 { font-size: 1.3rem; }
+}
