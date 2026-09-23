@@ -284,6 +284,14 @@ def realty_page():
 def places_page():
     return render_template("places.html", user=current_user())
 
+@app.route("/organizations")
+def organizations_page():
+    return render_template("organizations.html", user=current_user())
+
+
+@app.route("/docs")
+def docs_page():
+    return render_template("docs.html", user=current_user())
 
 @app.route("/admin")
 def admin_page():
