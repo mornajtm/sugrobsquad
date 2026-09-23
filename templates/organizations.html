@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Организации — SUGROB SQUAD</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <div class="side-menu-overlay" id="sideMenuOverlay"></div>
+  <aside class="side-menu" id="sideMenu">
+    <div class="side-menu-head">
+      <span>Меню</span>
+      <button id="closeSideMenu">✕</button>
+    </div>
+    <nav class="side-menu-nav">
+      <a href="/"><i data-lucide="home"></i> Главная</a>
+      {% if user %}<a href="/profile"><i data-lucide="user"></i> Профиль</a>{% endif %}
+      <a href="/trade"><i data-lucide="shopping-bag"></i> Торговля</a>
+      <a href="/realty"><i data-lucide="store"></i> Недвижимость</a>
+      <a href="/places"><i data-lucide="map-pin"></i> Общественные места</a>
+      <a href="/organizations"><i data-lucide="briefcase"></i> Организации</a>
+      <a href="/docs"><i data-lucide="book-open"></i> Документация</a>
+      {% if user and (user.role == 'Администратор' or user.username == 'Vladimir' or user.username == 'Wito') %}
+      <a href="/admin"><i data-lucide="shield"></i> Админ-панель</a>
+      {% endif %}
+    </nav>
+  </aside>
+
+  <header class="topbar">
+    <button class="burger"><i data-lucide="menu"></i></button>
+    <a href="/" class="logo">SUGROB SQUAD</a>
+    <div class="topbar-right">
+      {% if user %}
+        <button class="icon-btn" id="openNotifications" title="Уведомления">
+          <i data-lucide="bell"></i>
+        </button>
+        <a href="/profile" class="user-chip">
+          <span class="user-chip-avatar">
+            {% if user.avatar %}<img src="{{ user.avatar }}" alt="">{% else %}<i data-lucide="user"></i>{% endif %}
+          </span>
+        </a>
+      {% else %}
+        <button class="nav-btn" id="openAuthBtn"><i data-lucide="log-in"></i> Войти</button>
+      {% endif %}
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="page-head">
+      <h1>Организации Sugrob Squad</h1>
+    </div>
+
+    <p class="org-intro">
+      Добро пожаловать в структуру Sugrob Squad! У нас действуют три ключевых министерства.
+      Каждое выполняет свою роль и открыто для новых талантов. Выбирай своё направление и подай заявку.
+    </p>
+
+    <!-- МИНИСТЕРСТВО ЭКОНОМИКИ -->
+    <section class="org-card economy">
+      <div class="org-icon">🏭</div>
+      <h2>Министерство Экономики 🦺</h2>
+      <p class="org-tagline">
+        Системообразующий механизм всего Sugrob Squad. Здесь рождаются проекты,
+        закручиваются шестерёнки заводских станков и принимаются решения,
+        от которых зависит благосостояние каждого гражданина.
+      </p>
+
+      <div class="org-divider">❆</div>
+
+      <p>В Министерстве Экономики строгая иерархия и чёткое разделение труда:</p>
+      <ul class="org-list">
+        <li><b>Farm Department</b> — добыча и хранение ресурсов</li>
+        <li><b>Build Department</b> — строительство и возведение зданий</li>
+      </ul>
+
+      <p>Принцип отрядов — придя простым работягой, ты вскоре станешь руководителем команд.</p>
+
+      <div class="org-divider">❆</div>
+
+      <p>Здесь твой труд превращается в реальные ценности. Есть руки и голова — мы рады сотрудничеству!</p>
+
+      <div class="org-actions">
+        <button class="btn primary" onclick="applyOrg('economy')">
+          <i data-lucide="file-text"></i> Вступить в Министерство Экономики
+        </button>
+      </div>
+    </section>
+
+    <!-- МИНИСТЕРСТВО ОБОРОНЫ -->
+    <section class="org-card defense">
+      <div class="org-icon">🪖</div>
+      <h2>Министерство Обороны</h2>
+      <p class="org-tagline">
+        Стальной хребет всего сообщества, отвечающий за подготовку состава
+        к военным операциям любого масштаба.
+      </p>
+
+      <div class="org-divider">❆</div>
+
+      <p>Регулярные тренировки состава:</p>
+      <ul class="org-list">
+        <li>Повышение выносливости и реакции</li>
+        <li>Изучение карт и планирование операций</li>
+        <li>Отработка взаимодействия в отряде</li>
+        <li>Повышение точности и скорости стрельбы</li>
+      </ul>
+
+      <p>Каждый боец — элита, на которую можно положиться в самой сложной ситуации.</p>
+
+      <div class="org-actions">
+        <button class="btn primary" onclick="applyOrg('defense')">
+          <i data-lucide="sword"></i> Вступить в Министерство Обороны
+        </button>
+      </div>
+    </section>
+
+    <!-- МИНИСТЕРСТВО HR -->
+    <section class="org-card hr">
+      <div class="org-icon">🧑‍💼</div>
+      <h2>Министерство HR — Главные Врата</h2>
+      <p class="org-tagline">
+        Первое рукопожатие, которое получает каждый новый игрок.
+        HR-специалисты проводят собеседования и решают, получишь ли ты гражданство.
+      </p>
+
+      <div class="org-divider">❆</div>
+
+      <p>Задачи Министерства HR:</p>
+      <ul class="org-list">
+        <li>Создание и распространение рекламы Sugrob Squad</li>
+        <li>Приглашение игроков из других проектов</li>
+        <li>Работа с рекомендациями действующих граждан</li>
+      </ul>
+
+      <p>Кадры решают всё! Если активен и адекватен — мы уже ищем тебя.</p>
+
+      <div class="org-actions">
+        <button class="btn primary" onclick="applyOrg('hr')">
+          <i data-lucide="users"></i> Вступить в Министерство HR
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Модалка заявки -->
+  <div class="modal-overlay" id="applyOrgModal">
+    <div class="modal">
+      <button class="modal-close" onclick="document.getElementById('applyOrgModal').classList.remove('active')">✕</button>
+      <h2 class="modal-title" id="applyOrgTitle">Заявка в министерство</h2>
+      <form id="applyOrgForm" class="modal-form">
+        <label>Ник в Minecraft <span class="req">*</span></label>
+        <input name="mc_nick" placeholder="Steve" required>
+
+        <label>Сколько вам лет <span class="req">*</span></label>
+        <input name="age" type="number" min="10" max="99" placeholder="16" required>
+
+        <label>Почему хотите вступить <span class="req">*</span></label>
+        <textarea name="reason" rows="4" placeholder="Расскажите о себе и мотивации" required
+          style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;margin-bottom:16px;font-family:inherit"></textarea>
+
+        <label>Discord-тег (для связи)</label>
+        <input name="discord" placeholder="username#1234">
+
+        <p class="err" id="applyOrgError"></p>
+        <button type="submit" class="btn full">Отправить заявку</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/static/script.js"></script>
+  <script>
+    let currentOrg = "";
+
+    function applyOrg(orgKey) {
+      currentOrg = orgKey;
+      const titles = {
+        economy: "Заявка в Министерство Экономики",
+        defense: "Заявка в Министерство Обороны",
+        hr: "Заявка в Министерство HR"
+      };
+      document.getElementById("applyOrgTitle").textContent = titles[orgKey] || "Заявка";
+      document.getElementById("applyOrgModal").classList.add("active");
+    }
+
+    document.getElementById("applyOrgForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const err = document.getElementById("applyOrgError");
+      err.textContent = "";
+      const form = e.target;
+      const data = {
+        org: currentOrg,
+        mc_nick: form.mc_nick.value,
+        age: form.age.value,
+        reason: form.reason.value,
+        discord: form.discord.value,
+      };
+      const res = await fetch("/api/org/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const json = await res.json();
+      if (!res.ok) return (err.textContent = json.error || "Ошибка");
+      document.getElementById("applyOrgModal").classList.remove("active");
+      form.reset();
+      alert("✅ Заявка отправлена! Ожидайте ответа в Discord.");
+    });
+  </script>
+</body>
+</html>
